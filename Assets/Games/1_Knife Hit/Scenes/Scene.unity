@@ -757,6 +757,7 @@ MonoBehaviour:
   maxObstacles: 6
   powerUpTimeSlowPrefab: {fileID: 3298402898380000711, guid: 0de844f3a1d23b1418cdbd36af228fd6, type: 3}
   powerUpDoubleHitPrefab: {fileID: 3433399568628728857, guid: a66f1012771cea544a0c437a44d17c24, type: 3}
+  powerUpScoreMultiplierPrefab: {fileID: 9078319742968452497, guid: e115c86b284f77248b3f97704794b6c7, type: 3}
   powerUpChance: 100
   powerUpDistance: 1
   logPrefab: {fileID: 8829691866987002683, guid: eb43b4e046e2b14f684f73369ef84b39, type: 3}

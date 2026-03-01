@@ -54,6 +54,9 @@ public class GameManager : MonoBehaviour
     [Tooltip("Prefab power-up Double Hit")]
     public GameObject powerUpDoubleHitPrefab;
 
+    [Tooltip("Prefab power-up Score Multiplier")]
+    public GameObject powerUpScoreMultiplierPrefab;
+
     [Tooltip("Persentase kemungkinan power-up muncul per log (0-100)")]
     [Range(0, 100)]
     public int powerUpChance = 30;
@@ -83,6 +86,10 @@ public class GameManager : MonoBehaviour
     private int doubleHitRemaining = 0;
     // ===========================
 
+    // ======= SCORE MULTIPLIER =======
+    private int scoreMultiplier = 1;
+    // ================================
+
     void Awake() => instance = this;
 
     void Start()
@@ -101,8 +108,17 @@ public class GameManager : MonoBehaviour
     public void AddScore(int points)
     {
         if (isGameOver) return;
-        currentScore += points;
+
+        // ===== SCORE MULTIPLIER: kalikan score =====
+        int finalPoints = points * scoreMultiplier;
+        currentScore += finalPoints;
         scoreText.text = currentScore.ToString();
+
+        if (scoreMultiplier > 1)
+        {
+            Debug.Log($"[ScoreMultiplier] {points} x{scoreMultiplier} = {finalPoints}");
+        }
+        // ============================================
     }
 
     public void RegisterStuckKnife(GameObject knife)
@@ -118,19 +134,12 @@ public class GameManager : MonoBehaviour
 
     // ======= DOUBLE HIT SYSTEM =======
 
-    /// <summary>
-    /// Aktifkan double hit. Dipanggil oleh PowerUpDoubleHit.
-    /// </summary>
     public void ActivateDoubleHit(int hitCount)
     {
         doubleHitRemaining += hitCount;
         Debug.Log($"[DoubleHit] Aktif! Sisa hit double: {doubleHitRemaining}");
     }
 
-    /// <summary>
-    /// Ambil damage untuk knife saat ini. Jika double hit aktif, return 2.
-    /// Dipanggil oleh KnifeController saat kena log.
-    /// </summary>
     public int GetKnifeDamage()
     {
         if (doubleHitRemaining > 0)
@@ -143,6 +152,51 @@ public class GameManager : MonoBehaviour
     }
 
     // ==================================
+
+    // ======= SCORE MULTIPLIER SYSTEM =======
+
+    /// <summary>
+    /// Aktifkan score multiplier. Dipanggil oleh PowerUpScoreMultiplier.
+    /// </summary>
+    public void ActivateScoreMultiplier(int multiplier, float duration)
+    {
+        // Jika sudah aktif, reset timer (perpanjang durasi)
+        CancelInvoke(nameof(ResetScoreMultiplier));
+
+        scoreMultiplier = multiplier;
+        Debug.Log($"[ScoreMultiplier] Aktif! Score x{scoreMultiplier} selama {duration}s");
+
+        // Update UI untuk tampilkan multiplier
+        UpdateScoreUI();
+
+        // Auto-reset setelah durasi habis
+        Invoke(nameof(ResetScoreMultiplier), duration);
+    }
+
+    private void ResetScoreMultiplier()
+    {
+        scoreMultiplier = 1;
+        Debug.Log("[ScoreMultiplier] Kembali normal x1");
+
+        // Update UI kembali normal
+        UpdateScoreUI();
+    }
+
+    private void UpdateScoreUI()
+    {
+        if (scoreText == null) return;
+
+        if (scoreMultiplier > 1)
+        {
+            scoreText.text = currentScore + " x" + scoreMultiplier;
+        }
+        else
+        {
+            scoreText.text = currentScore.ToString();
+        }
+    }
+
+    // =======================================
 
     public void LoseHeart()
     {
@@ -289,14 +343,14 @@ public class GameManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Spawn power-up pada log. Random pilih antara Time Slow atau Double Hit.
+    /// Spawn power-up pada log. Random pilih dari semua power-up yang tersedia.
     /// </summary>
     private void SpawnPowerUpOnLog(GameObject log)
     {
-        // Kumpulkan prefab yang tersedia
         List<GameObject> availablePowerUps = new List<GameObject>();
         if (powerUpTimeSlowPrefab != null) availablePowerUps.Add(powerUpTimeSlowPrefab);
         if (powerUpDoubleHitPrefab != null) availablePowerUps.Add(powerUpDoubleHitPrefab);
+        if (powerUpScoreMultiplierPrefab != null) availablePowerUps.Add(powerUpScoreMultiplierPrefab);
 
         if (availablePowerUps.Count == 0) return;
 
