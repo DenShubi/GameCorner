@@ -22,7 +22,15 @@ public class LogController : MonoBehaviour
         if (toughness <= 0)
         {
             // Matikan collider agar tidak bisa dipukul lagi saat proses hancur
-            if(GetComponent<Collider>()) GetComponent<Collider>().enabled = false;
+            if (GetComponent<Collider>()) GetComponent<Collider>().enabled = false;
+
+            // ======= EFEK HANCUR BERKEPING =======
+            LogShatter shatter = GetComponent<LogShatter>();
+            if (shatter != null)
+            {
+                shatter.Shatter(); // Pecahkan sprite jadi keping-keping!
+            }
+            // =====================================
 
             GameManager.instance.LogDestroyed();
             Destroy(gameObject);
