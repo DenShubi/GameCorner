@@ -47,6 +47,17 @@ public class GameManager : MonoBehaviour
     [Tooltip("Jumlah obstacle maksimum")]
     public int maxObstacles = 6;
 
+    [Header("Power-Up System")]
+    [Tooltip("Prefab power-up Time Slow")]
+    public GameObject powerUpTimeSlowPrefab;
+
+    [Tooltip("Persentase kemungkinan power-up muncul per log (0-100)")]
+    [Range(0, 100)]
+    public int powerUpChance = 30;
+
+    [Tooltip("Jarak power-up dari pusat log")]
+    public float powerUpDistance = 0.5f;
+
     [Header("Settings")]
     public GameObject logPrefab;
     public Transform logSpawnPoint;
@@ -187,9 +198,6 @@ public class GameManager : MonoBehaviour
         return Mathf.Min(speed, maxRotationSpeed);
     }
 
-    /// <summary>
-    /// Hitung jumlah obstacle berdasarkan level.
-    /// </summary>
     private int GetObstacleCountForLevel()
     {
         if (currentLevel < obstacleStartLevel) return 0;
@@ -231,6 +239,10 @@ public class GameManager : MonoBehaviour
             }
             // ================================
 
+            // ======= SPAWN POWER-UP (random chance) =======
+            SpawnPowerUpOnLog(newLog);
+            // ===============================================
+
             Debug.Log($"[Level {currentLevel}] Toughness: {GetToughnessForLevel()}, " +
                       $"Rotation: {GetRotationSpeedForLevel()}, " +
                       $"Obstacles: {obstacleCount}");
@@ -239,6 +251,43 @@ public class GameManager : MonoBehaviour
         {
             Debug.LogError("Gagal Respawn: Log Prefab atau Spawn Point belum diisi di Inspector!");
         }
+    }
+
+    /// <summary>
+    /// Spawn power-up pada log dengan persentase kemungkinan tertentu.
+    /// </summary>
+    private void SpawnPowerUpOnLog(GameObject log)
+    {
+        if (powerUpTimeSlowPrefab == null) return;
+
+        // Random chance
+        int roll = Random.Range(0, 100);
+        if (roll >= powerUpChance) return;
+
+        // Posisi acak di sekitar log
+        float angle = Random.Range(0f, 360f);
+        float rad = angle * Mathf.Deg2Rad;
+
+        Vector3 localPos = new Vector3(
+            Mathf.Sin(rad) * powerUpDistance,
+            Mathf.Cos(rad) * powerUpDistance,
+            0f
+        );
+
+        // Spawn sebagai child log (ikut berputar)
+        GameObject powerUp = Instantiate(powerUpTimeSlowPrefab, log.transform);
+        powerUp.transform.localPosition = localPos;
+
+        // Kompensasi scale parent log
+        Vector3 logScale = log.transform.localScale;
+        Vector3 prefabScale = powerUpTimeSlowPrefab.transform.localScale;
+        powerUp.transform.localScale = new Vector3(
+            prefabScale.x / logScale.x,
+            prefabScale.y / logScale.y,
+            prefabScale.z / logScale.z
+        );
+
+        Debug.Log($"[PowerUp] Time Slow spawned at angle {angle:F0}°");
     }
 
     public void TriggerGameOver()
