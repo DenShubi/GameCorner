@@ -1075,6 +1075,10 @@ MonoBehaviour:
   baseRotationSpeed: 100
   rotationSpeedPerLevel: 10
   maxRotationSpeed: 300
+  obstacleStartLevel: 2
+  baseObstacles: 1
+  levelsPerExtraObstacle: 2
+  maxObstacles: 6
   logPrefab: {fileID: 8829691866987002683, guid: eb43b4e046e2b14f684f73369ef84b39, type: 3}
   logSpawnPoint: {fileID: 2040008827}
   maxKnivesOnLog: 12

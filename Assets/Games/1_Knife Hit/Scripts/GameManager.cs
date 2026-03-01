@@ -34,6 +34,19 @@ public class GameManager : MonoBehaviour
     [Tooltip("Kecepatan rotasi maksimum")]
     public float maxRotationSpeed = 300f;
 
+    [Header("Obstacle System")]
+    [Tooltip("Level mulai ada obstacle (level 1 = tanpa obstacle)")]
+    public int obstacleStartLevel = 2;
+
+    [Tooltip("Jumlah obstacle awal saat mulai muncul")]
+    public int baseObstacles = 1;
+
+    [Tooltip("Setiap berapa level, obstacle bertambah 1")]
+    public int levelsPerExtraObstacle = 2;
+
+    [Tooltip("Jumlah obstacle maksimum")]
+    public int maxObstacles = 6;
+
     [Header("Settings")]
     public GameObject logPrefab;
     public Transform logSpawnPoint;
@@ -163,17 +176,11 @@ public class GameManager : MonoBehaviour
         Invoke(nameof(SpawnNewLog), 0.5f);
     }
 
-    /// <summary>
-    /// Hitung toughness berdasarkan level saat ini.
-    /// </summary>
     private int GetToughnessForLevel()
     {
         return baseToughness + (toughnessPerLevel * (currentLevel - 1));
     }
 
-    /// <summary>
-    /// Hitung kecepatan rotasi berdasarkan level saat ini.
-    /// </summary>
     private float GetRotationSpeedForLevel()
     {
         float speed = baseRotationSpeed + (rotationSpeedPerLevel * (currentLevel - 1));
@@ -181,8 +188,17 @@ public class GameManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Update tampilan level di UI.
+    /// Hitung jumlah obstacle berdasarkan level.
     /// </summary>
+    private int GetObstacleCountForLevel()
+    {
+        if (currentLevel < obstacleStartLevel) return 0;
+
+        int levelsWithObstacles = currentLevel - obstacleStartLevel;
+        int count = baseObstacles + (levelsWithObstacles / levelsPerExtraObstacle);
+        return Mathf.Min(count, maxObstacles);
+    }
+
     private void UpdateLevelUI()
     {
         if (levelText != null)
@@ -197,6 +213,7 @@ public class GameManager : MonoBehaviour
         {
             GameObject newLog = Instantiate(logPrefab, logSpawnPoint.position, logSpawnPoint.rotation);
 
+            // Set toughness dan rotation speed
             LogController logCtrl = newLog.GetComponent<LogController>();
             if (logCtrl != null)
             {
@@ -204,8 +221,19 @@ public class GameManager : MonoBehaviour
                 logCtrl.rotationSpeed = GetRotationSpeedForLevel();
             }
 
+            // ======= SPAWN OBSTACLES =======
+            int obstacleCount = GetObstacleCountForLevel();
+            LogObstacleSpawner obsSpawner = newLog.GetComponent<LogObstacleSpawner>();
+            if (obsSpawner != null && obstacleCount > 0)
+            {
+                obsSpawner.obstacleCount = obstacleCount;
+                obsSpawner.SpawnObstacles();
+            }
+            // ================================
+
             Debug.Log($"[Level {currentLevel}] Toughness: {GetToughnessForLevel()}, " +
-                      $"Rotation: {GetRotationSpeedForLevel()}");
+                      $"Rotation: {GetRotationSpeedForLevel()}, " +
+                      $"Obstacles: {obstacleCount}");
         }
         else
         {
@@ -222,7 +250,7 @@ public class GameManager : MonoBehaviour
 
     void RestartGame() => SceneManager.LoadScene(SceneManager.GetActiveScene().name);
 
-    // ======= GETTER (untuk script lain yang perlu akses) =======
+    // ======= GETTER =======
     public int GetCurrentLevel() => currentLevel;
     public int GetCurrentScore() => currentScore;
     public int GetCurrentHearts() => currentHearts;

@@ -9,6 +9,18 @@ PrefabInstance:
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: -8679921383154817045, guid: e9b27e5fbb03b3046a52d66e8185b30e, type: 3}
+      propertyPath: m_LocalScale.x
+      value: 1.5
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: e9b27e5fbb03b3046a52d66e8185b30e, type: 3}
+      propertyPath: m_LocalScale.y
+      value: 1.5
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: e9b27e5fbb03b3046a52d66e8185b30e, type: 3}
+      propertyPath: m_LocalScale.z
+      value: 1.5
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: e9b27e5fbb03b3046a52d66e8185b30e, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0
       objectReference: {fileID: 0}
@@ -48,6 +60,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: e9b27e5fbb03b3046a52d66e8185b30e, type: 3}
+      propertyPath: m_ConstrainProportionsScale
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: e9b27e5fbb03b3046a52d66e8185b30e, type: 3}
       propertyPath: m_Name
       value: Log
@@ -72,6 +88,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: e9b27e5fbb03b3046a52d66e8185b30e, type: 3}
       insertIndex: -1
       addedObject: {fileID: 2148127359740642702}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: e9b27e5fbb03b3046a52d66e8185b30e, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 6531519450228757545}
   m_SourcePrefab: {fileID: 100100000, guid: e9b27e5fbb03b3046a52d66e8185b30e, type: 3}
 --- !u!1 &8829691866987002683 stripped
 GameObject:
@@ -162,7 +181,22 @@ MonoBehaviour:
   - {fileID: 4981484231276156874, guid: 7fc05ca248142f3429c42f48b0fa88e6, type: 3}
   - {fileID: 3879756561399335533, guid: 0f63c739fa7a815438190d484eb66e17, type: 3}
   explosionForce: 5
-  explosionRadius: 2
-  upwardsModifier: 0.1
+  upwardsForce: 2
   torqueForce: 1
   pieceLifetime: 2
+--- !u!114 &6531519450228757545
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8829691866987002683}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 974647c4dca32c54289642b0856b3eeb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  obstaclePrefab: {fileID: 1323025684312615854, guid: 609eb9a0bbf306f479353850caa8bd3c, type: 3}
+  handleDistance: 1.5
+  obstacleCount: 0
+  minAngleBetween: 40
