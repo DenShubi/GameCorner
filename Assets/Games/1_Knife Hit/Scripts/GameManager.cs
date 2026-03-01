@@ -10,6 +10,13 @@ public class GameManager : MonoBehaviour
     [Header("UI")]
     public TextMeshProUGUI scoreText;
 
+    [Header("Heart System")]
+    [Tooltip("Jumlah heart awal")]
+    public int maxHearts = 3;
+
+    [Tooltip("Referensi ke HeartUI script di Canvas")]
+    public HeartUI heartUI;
+
     [Header("Settings")]
     public GameObject logPrefab;
     public Transform logSpawnPoint;
@@ -22,10 +29,22 @@ public class GameManager : MonoBehaviour
     [HideInInspector] public bool isGameOver = false;
 
     private int currentScore = 0;
+    private int currentHearts;
     private int currentLevelToughness = 5;
     private List<GameObject> stuckKnives = new List<GameObject>();
 
     void Awake() => instance = this;
+
+    void Start()
+    {
+        currentHearts = maxHearts;
+
+        // Update tampilan heart di UI
+        if (heartUI != null)
+        {
+            heartUI.UpdateHearts(currentHearts);
+        }
+    }
 
     public void AddScore(int points)
     {
@@ -45,6 +64,30 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Dipanggil saat knife mengenai obstacle (knife lain).
+    /// Kurangi heart, jika habis baru game over.
+    /// </summary>
+    public void LoseHeart()
+    {
+        if (isGameOver) return;
+
+        currentHearts--;
+        Debug.Log($"[Heart] Sisa heart: {currentHearts}/{maxHearts}");
+
+        // Update UI
+        if (heartUI != null)
+        {
+            heartUI.UpdateHearts(currentHearts);
+        }
+
+        if (currentHearts <= 0)
+        {
+            // Heart habis → Game Over
+            TriggerGameOver();
+        }
+    }
+
     public void LogDestroyed()
     {
         AddScore(50);
@@ -54,29 +97,24 @@ public class GameManager : MonoBehaviour
         {
             if (k != null)
             {
-                // Lepaskan dari parent (log yang akan dihancurkan)
                 k.transform.SetParent(null);
 
-                // Matikan collider agar tidak trigger game over
                 Collider knifeCol = k.GetComponent<Collider>();
                 if (knifeCol != null) knifeCol.enabled = false;
 
-                // Tambahkan Rigidbody agar bisa terpental
                 Rigidbody rb = k.GetComponent<Rigidbody>();
                 if (rb == null) rb = k.AddComponent<Rigidbody>();
                 rb.isKinematic = false;
                 rb.useGravity = true;
 
-                // Beri arah acak ke atas
                 Vector3 scatterDir = new Vector3(
                     Random.Range(-1f, 1f),
                     Random.Range(0.5f, 1.5f),
-                    Random.Range(-0.5f, 0.5f)
+                    0f
                 ).normalized;
                 rb.AddForce(scatterDir * knifeScatterForce, ForceMode.Impulse);
-                rb.AddTorque(Random.insideUnitSphere * 10f);
+                rb.AddTorque(new Vector3(0f, 0f, Random.Range(-10f, 10f)));
 
-                // Hapus pisau setelah beberapa detik
                 Destroy(k, 3f);
             }
         }
@@ -84,7 +122,7 @@ public class GameManager : MonoBehaviour
         // =====================================
 
         currentLevelToughness += 2;
-        Invoke(nameof(SpawnNewLog), 0.5f); // Sedikit delay lebih lama agar efek terlihat
+        Invoke(nameof(SpawnNewLog), 0.5f);
     }
 
     void SpawnNewLog()
@@ -103,6 +141,7 @@ public class GameManager : MonoBehaviour
     public void TriggerGameOver()
     {
         isGameOver = true;
+        Debug.Log("[GameOver] Game Over!");
         Invoke(nameof(RestartGame), 2f);
     }
 
