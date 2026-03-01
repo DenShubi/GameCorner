@@ -12,7 +12,7 @@ public class GameManager : MonoBehaviour
 
     [Header("Settings")]
     public GameObject logPrefab;
-    public Transform logSpawnPoint; // Ini yang kosong di gambar Anda!
+    public Transform logSpawnPoint;
     public int maxKnivesOnLog = 10;
 
     [HideInInspector] public bool isGameOver = false;
@@ -45,20 +45,19 @@ public class GameManager : MonoBehaviour
     {
         AddScore(50);
 
-        // Bersihkan daftar pisau lama
         foreach (GameObject k in stuckKnives) { if (k != null) Destroy(k); }
         stuckKnives.Clear();
 
         currentLevelToughness += 2;
-        Invoke(nameof(SpawnNewLog), 0.2f); // Jeda sedikit agar halus
+        Invoke(nameof(SpawnNewLog), 0.2f);
     }
 
     void SpawnNewLog()
     {
-        // Pengecekan keamanan agar tidak error lagi
         if (logPrefab != null && logSpawnPoint != null)
         {
-            GameObject newLog = Instantiate(logPrefab, logSpawnPoint.position, Quaternion.Euler(90, 0, 0));
+            // FIX: Gunakan rotasi dari logSpawnPoint, bukan hardcoded Quaternion.Euler(90, 0, 0)
+            GameObject newLog = Instantiate(logPrefab, logSpawnPoint.position, logSpawnPoint.rotation);
             newLog.GetComponent<LogController>().toughness = currentLevelToughness;
         }
         else
