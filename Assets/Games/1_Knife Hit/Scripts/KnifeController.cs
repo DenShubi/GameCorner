@@ -4,7 +4,7 @@ public class KnifeController : MonoBehaviour
 {
     public float speed = 40f;
     private bool isFlying = false;
-    private bool hasHit = false; // Mencegah multiple trigger
+    private bool hasHit = false;
 
     void Update()
     {
@@ -16,9 +16,7 @@ public class KnifeController : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        if (hasHit) return; // Sudah pernah hit, abaikan
-
-        Debug.Log("Pisau menyentuh: " + other.name + " dengan Tag: " + other.tag);
+        if (hasHit) return;
 
         if (other.CompareTag("Log"))
         {
@@ -30,17 +28,25 @@ public class KnifeController : MonoBehaviour
             GameManager.instance.AddScore(10);
 
             other.GetComponent<LogController>().TakeDamage(1);
-            gameObject.tag = "Knife"; // Berubah jadi penghalang
+            gameObject.tag = "Knife";
         }
         else if (other.CompareTag("Knife"))
         {
+            // Hanya knife yang sedang TERBANG yang boleh trigger LoseHeart
+            // Knife yang sudah menancap (isFlying=false) TIDAK boleh trigger
+            if (!isFlying) return;
+
             hasHit = true;
             isFlying = false;
 
-            // ===== HEART SYSTEM: Kurangi heart, bukan langsung game over =====
+            // Kurangi heart
             GameManager.instance.LoseHeart();
 
-            // Knife yang gagal jatuh ke bawah
+            // Matikan collider LANGSUNG agar tidak double trigger
+            Collider col = GetComponent<Collider>();
+            if (col != null) col.enabled = false;
+
+            // Knife jatuh ke bawah
             Rigidbody rb = GetComponent<Rigidbody>();
             if (rb != null)
             {
@@ -49,7 +55,7 @@ public class KnifeController : MonoBehaviour
                 rb.AddForce(Vector3.down * 5f, ForceMode.Impulse);
             }
 
-            // Hapus knife yang gagal setelah 2 detik
+            // Hapus knife yang gagal
             Destroy(gameObject, 2f);
         }
     }

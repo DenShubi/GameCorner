@@ -33,13 +33,15 @@ public class GameManager : MonoBehaviour
     private int currentLevelToughness = 5;
     private List<GameObject> stuckKnives = new List<GameObject>();
 
+    // Cooldown agar LoseHeart tidak dipanggil berkali-kali sekaligus
+    private bool heartCooldown = false;
+
     void Awake() => instance = this;
 
     void Start()
     {
         currentHearts = maxHearts;
 
-        // Update tampilan heart di UI
         if (heartUI != null)
         {
             heartUI.UpdateHearts(currentHearts);
@@ -66,11 +68,14 @@ public class GameManager : MonoBehaviour
 
     /// <summary>
     /// Dipanggil saat knife mengenai obstacle (knife lain).
-    /// Kurangi heart, jika habis baru game over.
+    /// Menggunakan cooldown agar tidak double-trigger.
     /// </summary>
     public void LoseHeart()
     {
         if (isGameOver) return;
+        if (heartCooldown) return; // Cegah double trigger
+
+        heartCooldown = true;
 
         currentHearts--;
         Debug.Log($"[Heart] Sisa heart: {currentHearts}/{maxHearts}");
@@ -83,9 +88,25 @@ public class GameManager : MonoBehaviour
 
         if (currentHearts <= 0)
         {
-            // Heart habis → Game Over
             TriggerGameOver();
         }
+        else
+        {
+            // Heart masih ada → spawn knife baru
+            KnifeSpawner spawner = FindObjectOfType<KnifeSpawner>();
+            if (spawner != null)
+            {
+                spawner.ForceSpawnNewKnife();
+            }
+
+            // Reset cooldown setelah delay singkat
+            Invoke(nameof(ResetHeartCooldown), 0.5f);
+        }
+    }
+
+    private void ResetHeartCooldown()
+    {
+        heartCooldown = false;
     }
 
     public void LogDestroyed()
