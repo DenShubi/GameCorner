@@ -57,6 +57,9 @@ public class GameManager : MonoBehaviour
     [Tooltip("Prefab power-up Score Multiplier")]
     public GameObject powerUpScoreMultiplierPrefab;
 
+    [Tooltip("Prefab power-up Shield")]
+    public GameObject powerUpShieldPrefab;
+
     [Tooltip("Persentase kemungkinan power-up muncul per log (0-100)")]
     [Range(0, 100)]
     public int powerUpChance = 30;
@@ -89,6 +92,10 @@ public class GameManager : MonoBehaviour
     // ======= SCORE MULTIPLIER =======
     private int scoreMultiplier = 1;
     // ================================
+
+    // ======= SHIELD =======
+    private int shieldCharges = 0;
+    // =======================
 
     void Awake() => instance = this;
 
@@ -155,21 +162,15 @@ public class GameManager : MonoBehaviour
 
     // ======= SCORE MULTIPLIER SYSTEM =======
 
-    /// <summary>
-    /// Aktifkan score multiplier. Dipanggil oleh PowerUpScoreMultiplier.
-    /// </summary>
     public void ActivateScoreMultiplier(int multiplier, float duration)
     {
-        // Jika sudah aktif, reset timer (perpanjang durasi)
         CancelInvoke(nameof(ResetScoreMultiplier));
 
         scoreMultiplier = multiplier;
         Debug.Log($"[ScoreMultiplier] Aktif! Score x{scoreMultiplier} selama {duration}s");
 
-        // Update UI untuk tampilkan multiplier
         UpdateScoreUI();
 
-        // Auto-reset setelah durasi habis
         Invoke(nameof(ResetScoreMultiplier), duration);
     }
 
@@ -178,7 +179,6 @@ public class GameManager : MonoBehaviour
         scoreMultiplier = 1;
         Debug.Log("[ScoreMultiplier] Kembali normal x1");
 
-        // Update UI kembali normal
         UpdateScoreUI();
     }
 
@@ -198,12 +198,57 @@ public class GameManager : MonoBehaviour
 
     // =======================================
 
+    // ======= SHIELD SYSTEM =======
+
+    /// <summary>
+    /// Aktifkan shield. Dipanggil oleh PowerUpShield.
+    /// </summary>
+    public void ActivateShield(int charges)
+    {
+        shieldCharges += charges;
+        Debug.Log($"[Shield] Aktif! Charges: {shieldCharges}");
+    }
+
+    /// <summary>
+    /// Cek apakah shield tersedia dan konsumsi 1 charge.
+    /// Return true jika shield menyerap hit (heart tidak berkurang).
+    /// </summary>
+    public bool TryUseShield()
+    {
+        if (shieldCharges > 0)
+        {
+            shieldCharges--;
+            Debug.Log($"[Shield] Hit diserap! Sisa charges: {shieldCharges}");
+            return true;
+        }
+        return false;
+    }
+
+    // =============================
+
     public void LoseHeart()
     {
         if (isGameOver) return;
         if (heartCooldown) return;
 
         heartCooldown = true;
+
+        // ===== SHIELD: cek apakah shield aktif =====
+        if (TryUseShield())
+        {
+            Debug.Log("[Shield] Shield melindungi! Heart tidak berkurang.");
+
+            // Tetap spawn knife baru
+            KnifeSpawner spawner = FindObjectOfType<KnifeSpawner>();
+            if (spawner != null)
+            {
+                spawner.ForceSpawnNewKnife();
+            }
+
+            Invoke(nameof(ResetHeartCooldown), 0.5f);
+            return; // ← heart TIDAK berkurang!
+        }
+        // ============================================
 
         currentHearts--;
         Debug.Log($"[Heart] Sisa heart: {currentHearts}/{maxHearts}");
@@ -351,6 +396,7 @@ public class GameManager : MonoBehaviour
         if (powerUpTimeSlowPrefab != null) availablePowerUps.Add(powerUpTimeSlowPrefab);
         if (powerUpDoubleHitPrefab != null) availablePowerUps.Add(powerUpDoubleHitPrefab);
         if (powerUpScoreMultiplierPrefab != null) availablePowerUps.Add(powerUpScoreMultiplierPrefab);
+        if (powerUpShieldPrefab != null) availablePowerUps.Add(powerUpShieldPrefab);
 
         if (availablePowerUps.Count == 0) return;
 
@@ -400,4 +446,5 @@ public class GameManager : MonoBehaviour
     public int GetCurrentLevel() => currentLevel;
     public int GetCurrentScore() => currentScore;
     public int GetCurrentHearts() => currentHearts;
+    public int GetShieldCharges() => shieldCharges;
 }
