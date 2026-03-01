@@ -51,6 +51,9 @@ public class GameManager : MonoBehaviour
     [Tooltip("Prefab power-up Time Slow")]
     public GameObject powerUpTimeSlowPrefab;
 
+    [Tooltip("Prefab power-up Double Hit")]
+    public GameObject powerUpDoubleHitPrefab;
+
     [Tooltip("Persentase kemungkinan power-up muncul per log (0-100)")]
     [Range(0, 100)]
     public int powerUpChance = 30;
@@ -75,6 +78,10 @@ public class GameManager : MonoBehaviour
     private List<GameObject> stuckKnives = new List<GameObject>();
 
     private bool heartCooldown = false;
+
+    // ======= DOUBLE HIT =======
+    private int doubleHitRemaining = 0;
+    // ===========================
 
     void Awake() => instance = this;
 
@@ -108,6 +115,34 @@ public class GameManager : MonoBehaviour
             Destroy(oldest);
         }
     }
+
+    // ======= DOUBLE HIT SYSTEM =======
+
+    /// <summary>
+    /// Aktifkan double hit. Dipanggil oleh PowerUpDoubleHit.
+    /// </summary>
+    public void ActivateDoubleHit(int hitCount)
+    {
+        doubleHitRemaining += hitCount;
+        Debug.Log($"[DoubleHit] Aktif! Sisa hit double: {doubleHitRemaining}");
+    }
+
+    /// <summary>
+    /// Ambil damage untuk knife saat ini. Jika double hit aktif, return 2.
+    /// Dipanggil oleh KnifeController saat kena log.
+    /// </summary>
+    public int GetKnifeDamage()
+    {
+        if (doubleHitRemaining > 0)
+        {
+            doubleHitRemaining--;
+            Debug.Log($"[DoubleHit] Damage x2! Sisa: {doubleHitRemaining}");
+            return 2;
+        }
+        return 1;
+    }
+
+    // ==================================
 
     public void LoseHeart()
     {
@@ -254,15 +289,23 @@ public class GameManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Spawn power-up pada log dengan persentase kemungkinan tertentu.
+    /// Spawn power-up pada log. Random pilih antara Time Slow atau Double Hit.
     /// </summary>
     private void SpawnPowerUpOnLog(GameObject log)
     {
-        if (powerUpTimeSlowPrefab == null) return;
+        // Kumpulkan prefab yang tersedia
+        List<GameObject> availablePowerUps = new List<GameObject>();
+        if (powerUpTimeSlowPrefab != null) availablePowerUps.Add(powerUpTimeSlowPrefab);
+        if (powerUpDoubleHitPrefab != null) availablePowerUps.Add(powerUpDoubleHitPrefab);
+
+        if (availablePowerUps.Count == 0) return;
 
         // Random chance
         int roll = Random.Range(0, 100);
         if (roll >= powerUpChance) return;
+
+        // Pilih power-up secara acak
+        GameObject chosenPrefab = availablePowerUps[Random.Range(0, availablePowerUps.Count)];
 
         // Posisi acak di sekitar log
         float angle = Random.Range(0f, 360f);
@@ -275,19 +318,19 @@ public class GameManager : MonoBehaviour
         );
 
         // Spawn sebagai child log (ikut berputar)
-        GameObject powerUp = Instantiate(powerUpTimeSlowPrefab, log.transform);
+        GameObject powerUp = Instantiate(chosenPrefab, log.transform);
         powerUp.transform.localPosition = localPos;
 
         // Kompensasi scale parent log
         Vector3 logScale = log.transform.localScale;
-        Vector3 prefabScale = powerUpTimeSlowPrefab.transform.localScale;
+        Vector3 prefabScale = chosenPrefab.transform.localScale;
         powerUp.transform.localScale = new Vector3(
             prefabScale.x / logScale.x,
             prefabScale.y / logScale.y,
             prefabScale.z / logScale.z
         );
 
-        Debug.Log($"[PowerUp] Time Slow spawned at angle {angle:F0}°");
+        Debug.Log($"[PowerUp] {chosenPrefab.name} spawned at angle {angle:F0}°");
     }
 
     public void TriggerGameOver()
