@@ -9,6 +9,7 @@ public class GameManager : MonoBehaviour
 
     [Header("UI")]
     public TextMeshProUGUI scoreText;
+    public TextMeshProUGUI levelText;
 
     [Header("Heart System")]
     [Tooltip("Jumlah heart awal")]
@@ -16,6 +17,22 @@ public class GameManager : MonoBehaviour
 
     [Tooltip("Referensi ke HeartUI script di Canvas")]
     public HeartUI heartUI;
+
+    [Header("Level System")]
+    [Tooltip("Toughness awal di level 1")]
+    public int baseToughness = 5;
+
+    [Tooltip("Tambahan toughness per level")]
+    public int toughnessPerLevel = 2;
+
+    [Tooltip("Kecepatan rotasi awal log")]
+    public float baseRotationSpeed = 100f;
+
+    [Tooltip("Tambahan kecepatan rotasi per level")]
+    public float rotationSpeedPerLevel = 10f;
+
+    [Tooltip("Kecepatan rotasi maksimum")]
+    public float maxRotationSpeed = 300f;
 
     [Header("Settings")]
     public GameObject logPrefab;
@@ -30,10 +47,9 @@ public class GameManager : MonoBehaviour
 
     private int currentScore = 0;
     private int currentHearts;
-    private int currentLevelToughness = 5;
+    private int currentLevel = 1;
     private List<GameObject> stuckKnives = new List<GameObject>();
 
-    // Cooldown agar LoseHeart tidak dipanggil berkali-kali sekaligus
     private bool heartCooldown = false;
 
     void Awake() => instance = this;
@@ -41,11 +57,14 @@ public class GameManager : MonoBehaviour
     void Start()
     {
         currentHearts = maxHearts;
+        currentLevel = 1;
 
         if (heartUI != null)
         {
             heartUI.UpdateHearts(currentHearts);
         }
+
+        UpdateLevelUI();
     }
 
     public void AddScore(int points)
@@ -66,21 +85,16 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Dipanggil saat knife mengenai obstacle (knife lain).
-    /// Menggunakan cooldown agar tidak double-trigger.
-    /// </summary>
     public void LoseHeart()
     {
         if (isGameOver) return;
-        if (heartCooldown) return; // Cegah double trigger
+        if (heartCooldown) return;
 
         heartCooldown = true;
 
         currentHearts--;
         Debug.Log($"[Heart] Sisa heart: {currentHearts}/{maxHearts}");
 
-        // Update UI
         if (heartUI != null)
         {
             heartUI.UpdateHearts(currentHearts);
@@ -92,14 +106,12 @@ public class GameManager : MonoBehaviour
         }
         else
         {
-            // Heart masih ada → spawn knife baru
             KnifeSpawner spawner = FindObjectOfType<KnifeSpawner>();
             if (spawner != null)
             {
                 spawner.ForceSpawnNewKnife();
             }
 
-            // Reset cooldown setelah delay singkat
             Invoke(nameof(ResetHeartCooldown), 0.5f);
         }
     }
@@ -142,8 +154,41 @@ public class GameManager : MonoBehaviour
         stuckKnives.Clear();
         // =====================================
 
-        currentLevelToughness += 2;
+        // ======= LEVEL UP =======
+        currentLevel++;
+        UpdateLevelUI();
+        Debug.Log($"[Level] Naik ke Level {currentLevel}!");
+        // =========================
+
         Invoke(nameof(SpawnNewLog), 0.5f);
+    }
+
+    /// <summary>
+    /// Hitung toughness berdasarkan level saat ini.
+    /// </summary>
+    private int GetToughnessForLevel()
+    {
+        return baseToughness + (toughnessPerLevel * (currentLevel - 1));
+    }
+
+    /// <summary>
+    /// Hitung kecepatan rotasi berdasarkan level saat ini.
+    /// </summary>
+    private float GetRotationSpeedForLevel()
+    {
+        float speed = baseRotationSpeed + (rotationSpeedPerLevel * (currentLevel - 1));
+        return Mathf.Min(speed, maxRotationSpeed);
+    }
+
+    /// <summary>
+    /// Update tampilan level di UI.
+    /// </summary>
+    private void UpdateLevelUI()
+    {
+        if (levelText != null)
+        {
+            levelText.text = "Level " + currentLevel;
+        }
     }
 
     void SpawnNewLog()
@@ -151,7 +196,16 @@ public class GameManager : MonoBehaviour
         if (logPrefab != null && logSpawnPoint != null)
         {
             GameObject newLog = Instantiate(logPrefab, logSpawnPoint.position, logSpawnPoint.rotation);
-            newLog.GetComponent<LogController>().toughness = currentLevelToughness;
+
+            LogController logCtrl = newLog.GetComponent<LogController>();
+            if (logCtrl != null)
+            {
+                logCtrl.toughness = GetToughnessForLevel();
+                logCtrl.rotationSpeed = GetRotationSpeedForLevel();
+            }
+
+            Debug.Log($"[Level {currentLevel}] Toughness: {GetToughnessForLevel()}, " +
+                      $"Rotation: {GetRotationSpeedForLevel()}");
         }
         else
         {
@@ -162,9 +216,14 @@ public class GameManager : MonoBehaviour
     public void TriggerGameOver()
     {
         isGameOver = true;
-        Debug.Log("[GameOver] Game Over!");
+        Debug.Log($"[GameOver] Game Over! Final Level: {currentLevel}, Score: {currentScore}");
         Invoke(nameof(RestartGame), 2f);
     }
 
     void RestartGame() => SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+
+    // ======= GETTER (untuk script lain yang perlu akses) =======
+    public int GetCurrentLevel() => currentLevel;
+    public int GetCurrentScore() => currentScore;
+    public int GetCurrentHearts() => currentHearts;
 }
