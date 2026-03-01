@@ -60,6 +60,9 @@ public class GameManager : MonoBehaviour
     [Tooltip("Prefab power-up Shield")]
     public GameObject powerUpShieldPrefab;
 
+    [Tooltip("Prefab power-up Double Knife")]
+    public GameObject powerUpDoubleKnifePrefab;
+
     [Tooltip("Persentase kemungkinan power-up muncul per log (0-100)")]
     [Range(0, 100)]
     public int powerUpChance = 30;
@@ -96,6 +99,10 @@ public class GameManager : MonoBehaviour
     // ======= SHIELD =======
     private int shieldCharges = 0;
     // =======================
+
+    // ======= DOUBLE KNIFE =======
+    private int doubleKnifeRemaining = 0;
+    // ============================
 
     void Awake() => instance = this;
 
@@ -200,19 +207,12 @@ public class GameManager : MonoBehaviour
 
     // ======= SHIELD SYSTEM =======
 
-    /// <summary>
-    /// Aktifkan shield. Dipanggil oleh PowerUpShield.
-    /// </summary>
     public void ActivateShield(int charges)
     {
         shieldCharges += charges;
         Debug.Log($"[Shield] Aktif! Charges: {shieldCharges}");
     }
 
-    /// <summary>
-    /// Cek apakah shield tersedia dan konsumsi 1 charge.
-    /// Return true jika shield menyerap hit (heart tidak berkurang).
-    /// </summary>
     public bool TryUseShield()
     {
         if (shieldCharges > 0)
@@ -226,6 +226,41 @@ public class GameManager : MonoBehaviour
 
     // =============================
 
+    // ======= DOUBLE KNIFE SYSTEM =======
+
+    /// <summary>
+    /// Aktifkan double knife. Dipanggil oleh PowerUpDoubleKnife.
+    /// </summary>
+    public void ActivateDoubleKnife(int throwCount)
+    {
+        doubleKnifeRemaining += throwCount;
+        Debug.Log($"[DoubleKnife] Aktif! Sisa throw double: {doubleKnifeRemaining}");
+    }
+
+    /// <summary>
+    /// Cek apakah double knife masih aktif.
+    /// Dipanggil oleh KnifeSpawner saat spawn knife baru.
+    /// </summary>
+    public bool IsDoubleKnifeActive()
+    {
+        return doubleKnifeRemaining > 0;
+    }
+
+    /// <summary>
+    /// Konsumsi 1 charge double knife setelah throw.
+    /// Dipanggil oleh KnifeSpawner setelah player tap.
+    /// </summary>
+    public void ConsumeDoubleKnife()
+    {
+        if (doubleKnifeRemaining > 0)
+        {
+            doubleKnifeRemaining--;
+            Debug.Log($"[DoubleKnife] Throw double! Sisa: {doubleKnifeRemaining}");
+        }
+    }
+
+    // ===================================
+
     public void LoseHeart()
     {
         if (isGameOver) return;
@@ -238,7 +273,6 @@ public class GameManager : MonoBehaviour
         {
             Debug.Log("[Shield] Shield melindungi! Heart tidak berkurang.");
 
-            // Tetap spawn knife baru
             KnifeSpawner spawner = FindObjectOfType<KnifeSpawner>();
             if (spawner != null)
             {
@@ -246,7 +280,7 @@ public class GameManager : MonoBehaviour
             }
 
             Invoke(nameof(ResetHeartCooldown), 0.5f);
-            return; // ← heart TIDAK berkurang!
+            return;
         }
         // ============================================
 
@@ -397,6 +431,7 @@ public class GameManager : MonoBehaviour
         if (powerUpDoubleHitPrefab != null) availablePowerUps.Add(powerUpDoubleHitPrefab);
         if (powerUpScoreMultiplierPrefab != null) availablePowerUps.Add(powerUpScoreMultiplierPrefab);
         if (powerUpShieldPrefab != null) availablePowerUps.Add(powerUpShieldPrefab);
+        if (powerUpDoubleKnifePrefab != null) availablePowerUps.Add(powerUpDoubleKnifePrefab);
 
         if (availablePowerUps.Count == 0) return;
 
@@ -447,4 +482,5 @@ public class GameManager : MonoBehaviour
     public int GetCurrentScore() => currentScore;
     public int GetCurrentHearts() => currentHearts;
     public int GetShieldCharges() => shieldCharges;
+    public int GetDoubleKnifeRemaining() => doubleKnifeRemaining;
 }
