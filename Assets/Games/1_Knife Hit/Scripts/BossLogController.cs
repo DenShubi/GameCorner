@@ -2,8 +2,8 @@ using UnityEngine;
 
 /// <summary>
 /// Controller untuk Boss Log berlapis.
-/// Semua layer TERLIHAT dari awal (berlapis visual).
-/// Hanya collider & LogController yang diaktifkan secara bertahap.
+/// Semua layer TERLIHAT dan BERPUTAR dari awal (berlapis visual).
+/// Hanya collider yang diaktifkan secara bertahap.
 /// </summary>
 public class BossLogController : MonoBehaviour
 {
@@ -83,7 +83,7 @@ public class BossLogController : MonoBehaviour
         float scaledMiddleSpeed = middleRotationSpeed + (middleRotationSpeed > 0 ? extraSpeed : -extraSpeed);
         float scaledInnerSpeed = innerRotationSpeed + (innerRotationSpeed > 0 ? extraSpeed : -extraSpeed);
 
-        // ======= SEMUA LAYER TERLIHAT DARI AWAL =======
+        // ======= SEMUA LAYER TERLIHAT DAN BERPUTAR DARI AWAL =======
         // Setup LogController pada semua layer
         SetupLayer(layerOuter, scaledOuterTough, scaledOuterSpeed);
         SetupLayer(layerMiddle, scaledMiddleTough, scaledMiddleSpeed);
@@ -94,14 +94,17 @@ public class BossLogController : MonoBehaviour
         layerMiddle.SetActive(true);
         layerInner.SetActive(true);
 
-        // Tapi hanya outer yang INTERACTABLE (collider aktif)
+        // ===== FIX: SEMUA layer berputar dari awal =====
+        // LogController.enabled = true pada SEMUA layer
+        // Hanya COLLIDER yang dimatikan untuk layer yang belum aktif
+        EnableRotation(layerOuter);
+        EnableRotation(layerMiddle);
+        EnableRotation(layerInner);
+
+        // Hanya outer yang INTERACTABLE (collider aktif)
         SetLayerInteractable(layerOuter, true);
         SetLayerInteractable(layerMiddle, false);
         SetLayerInteractable(layerInner, false);
-
-        // Matikan rotasi pada layer yang belum aktif
-        DisableRotation(layerMiddle);
-        DisableRotation(layerInner);
         // ================================================
 
         currentLayerIndex = 0;
@@ -146,23 +149,22 @@ public class BossLogController : MonoBehaviour
     }
 
     /// <summary>
-    /// Matikan rotasi pada layer (set speed ke 0 sementara).
-    /// Rotasi asli tersimpan di LogController.rotationSpeed.
+    /// Aktifkan rotasi pada layer (enable LogController).
     /// </summary>
-    private void DisableRotation(GameObject layer)
+    private void EnableRotation(GameObject layer)
     {
         if (layer == null) return;
 
         LogController logCtrl = layer.GetComponent<LogController>();
         if (logCtrl != null)
         {
-            // Simpan speed asli, lalu set ke 0
-            logCtrl.enabled = false;
+            logCtrl.enabled = true;
         }
     }
 
     /// <summary>
-    /// Aktifkan layer berikutnya: collider ON, rotasi ON, spawn obstacles.
+    /// Aktifkan layer berikutnya: collider ON, spawn obstacles.
+    /// Rotasi sudah aktif dari awal, tidak perlu diaktifkan lagi.
     /// </summary>
     private void ActivateNextLayer(GameObject layer, int obstacleCount)
     {
@@ -171,12 +173,7 @@ public class BossLogController : MonoBehaviour
         // Aktifkan collider
         SetLayerInteractable(layer, true);
 
-        // Aktifkan rotasi
-        LogController logCtrl = layer.GetComponent<LogController>();
-        if (logCtrl != null)
-        {
-            logCtrl.enabled = true;
-        }
+        // Rotasi sudah aktif dari awal — tidak perlu enable lagi
 
         // Spawn obstacles
         SpawnObstaclesOnLayer(layer, obstacleCount);

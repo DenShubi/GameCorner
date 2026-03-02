@@ -60,19 +60,23 @@ public class MultiplayerKnifeController : MonoBehaviour
             hasHit = true;
             isFlying = false;
 
-            // Multiplayer: knife mental, tidak ada heart system
+            // ===== FIX: Disable collider =====
             Collider col = GetComponent<Collider>();
             if (col != null) col.enabled = false;
 
+            // ===== FIX: Pastikan Rigidbody ADA =====
             Rigidbody rb = GetComponent<Rigidbody>();
-            if (rb != null)
+            if (rb == null)
             {
-                rb.isKinematic = false;
-                rb.useGravity = true;
-
-                Vector3 bounceDir = (playerID == 1) ? Vector3.down : Vector3.up;
-                rb.AddForce(bounceDir * 5f, ForceMode.Impulse);
+                rb = gameObject.AddComponent<Rigidbody>();
             }
+
+            rb.isKinematic = false;
+            rb.useGravity = true;
+            rb.linearVelocity = Vector3.zero; // Reset velocity lama
+            rb.AddForce(Vector3.down * 8f, ForceMode.Impulse);
+            rb.AddTorque(new Vector3(0f, 0f, Random.Range(-15f, 15f)), ForceMode.Impulse);
+            // =======================================
 
             Destroy(gameObject, 2f);
         }

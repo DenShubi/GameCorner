@@ -3,6 +3,7 @@ using UnityEngine;
 /// <summary>
 /// Memecah log menggunakan pre-fractured pieces (prefab) dari Blender Cell Fracture.
 /// Keping hanya terpental di axis X dan Y (cocok untuk game 2D dengan objek 3D).
+/// Pieces TIDAK punya collider — murni visual.
 /// </summary>
 public class LogShatter : MonoBehaviour
 {
@@ -53,6 +54,15 @@ public class LogShatter : MonoBehaviour
             );
             piece.transform.localScale = transform.localScale;
 
+            // ===== FIX: Hapus SEMUA collider pada piece =====
+            // Pieces murni visual, tidak perlu collider
+            Collider[] colliders = piece.GetComponentsInChildren<Collider>(true);
+            foreach (Collider col in colliders)
+            {
+                Destroy(col);
+            }
+            // ================================================
+
             // Rigidbody
             Rigidbody rb = piece.GetComponent<Rigidbody>();
             if (rb == null) rb = piece.AddComponent<Rigidbody>();
@@ -63,12 +73,9 @@ public class LogShatter : MonoBehaviour
             // ===== KUNCI: Kunci sumbu Z agar hanya gerak di X dan Y =====
             rb.constraints = RigidbodyConstraints.FreezePositionZ;
 
-            // Collider
-            if (piece.GetComponent<Collider>() == null)
-            {
-                MeshCollider mc = piece.AddComponent<MeshCollider>();
-                mc.convex = true;
-            }
+            // ===== TIDAK menambah collider baru =====
+            // Piece tanpa collider tetap bisa pakai Rigidbody + gravity
+            // Hanya tidak bisa bertabrakan dengan objek lain
 
             // ===== GAYA MANUAL HANYA DI X DAN Y =====
             // Hitung arah dari pusat log ke posisi keping (hanya X dan Y)
