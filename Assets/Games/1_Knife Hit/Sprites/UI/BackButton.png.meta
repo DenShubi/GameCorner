@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: 0dbdbef6bb460fc4a9f535b85f075d4d
+guid: ccd226a9b7177d34db1c80e79ed7140c
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: -511133062249068954
-    second: heart_empty_0
+      213: -2970073484504309273
+    second: BackButton_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -100,13 +100,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: heart_empty_0
+      name: BackButton_0
       rect:
         serializedVersion: 2
         x: 0
         y: 0
-        width: 417
-        height: 363
+        width: 240
+        height: 240
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -115,8 +115,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 666cfaf103718e8f0800000000000000
-      internalID: -511133062249068954
+      spriteID: 7e16057e6ed28c6d0800000000000000
+      internalID: -2970073484504309273
       vertices: []
       indices: 
       edges: []
@@ -135,7 +135,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      heart_empty_0: -511133062249068954
+      BackButton_0: -2970073484504309273
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

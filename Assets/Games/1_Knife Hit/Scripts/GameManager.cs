@@ -7,8 +7,17 @@ public class GameManager : MonoBehaviour
 {
     public static GameManager instance;
 
-    [Header("UI")]
+    [Header("UI - Top Bar")]
+    [Tooltip("Text score utama (di dalam score background)")]
     public TextMeshProUGUI scoreText;
+
+    [Tooltip("Text high score (di samping trophy icon)")]
+    public TextMeshProUGUI highScoreText;
+
+    [Tooltip("Text stage/level di bawah top bar")]
+    public TextMeshProUGUI stageText;
+
+    [Header("UI - Legacy (tetap bisa dipakai)")]
     public TextMeshProUGUI levelText;
 
     [Header("Heart System")]
@@ -136,6 +145,10 @@ public class GameManager : MonoBehaviour
         }
 
         UpdateLevelUI();
+        UpdateStageUI();
+
+        // ===== HIGH SCORE: load & tampilkan =====
+        LoadHighScore();
     }
 
     public void AddScore(int points)
@@ -145,6 +158,9 @@ public class GameManager : MonoBehaviour
         int finalPoints = points * scoreMultiplier;
         currentScore += finalPoints;
         scoreText.text = currentScore.ToString();
+
+        // ===== HIGH SCORE: cek setiap score bertambah =====
+        TryUpdateHighScore();
 
         if (scoreMultiplier > 1)
         {
@@ -162,6 +178,39 @@ public class GameManager : MonoBehaviour
             Destroy(oldest);
         }
     }
+
+    // ======= HIGH SCORE SYSTEM =======
+
+    private const string HIGH_SCORE_KEY = "KnifeHit_HighScore";
+
+    private void LoadHighScore()
+    {
+        int highScore = PlayerPrefs.GetInt(HIGH_SCORE_KEY, 0);
+        if (highScoreText != null)
+        {
+            highScoreText.text = highScore.ToString();
+        }
+        Debug.Log($"[HighScore] Loaded: {highScore}");
+    }
+
+    private void TryUpdateHighScore()
+    {
+        int highScore = PlayerPrefs.GetInt(HIGH_SCORE_KEY, 0);
+        if (currentScore > highScore)
+        {
+            PlayerPrefs.SetInt(HIGH_SCORE_KEY, currentScore);
+            PlayerPrefs.Save();
+
+            if (highScoreText != null)
+            {
+                highScoreText.text = currentScore.ToString();
+            }
+
+            Debug.Log($"[HighScore] NEW HIGH SCORE: {currentScore}!");
+        }
+    }
+
+    // ==================================
 
     // ======= DOUBLE HIT SYSTEM =======
 
@@ -325,6 +374,7 @@ public class GameManager : MonoBehaviour
 
         currentLevel++;
         UpdateLevelUI();
+        UpdateStageUI();
         Debug.Log($"[Level] Naik ke Level {currentLevel}!");
 
         Invoke(nameof(SpawnNewLog), 0.5f);
@@ -342,6 +392,7 @@ public class GameManager : MonoBehaviour
 
         currentLevel++;
         UpdateLevelUI();
+        UpdateStageUI();
         Debug.Log($"[Boss] Boss defeated! Naik ke Level {currentLevel}!");
 
         Invoke(nameof(SpawnNewLog), 1f);
@@ -412,6 +463,21 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    private void UpdateStageUI()
+    {
+        if (stageText != null)
+        {
+            if (isBossLevel)
+            {
+                stageText.text = "⚔ BOSS ⚔";
+            }
+            else
+            {
+                stageText.text = "Stage " + currentLevel;
+            }
+        }
+    }
+
     private bool IsBossLevel()
     {
         return currentLevel % bossEveryNLevels == 0;
@@ -460,6 +526,7 @@ public class GameManager : MonoBehaviour
     {
         isBossLevel = true;
         UpdateLevelUI();
+        UpdateStageUI();
 
         currentBossObject = Instantiate(bossLogPrefab, logSpawnPoint.position, logSpawnPoint.rotation);
 
@@ -524,6 +591,10 @@ public class GameManager : MonoBehaviour
     public void TriggerGameOver()
     {
         isGameOver = true;
+
+        // ===== HIGH SCORE: final check saat game over =====
+        TryUpdateHighScore();
+
         Debug.Log($"[GameOver] Game Over! Final Level: {currentLevel}, Score: {currentScore}");
         Invoke(nameof(RestartGame), 2f);
     }
