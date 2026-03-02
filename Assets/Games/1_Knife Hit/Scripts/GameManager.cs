@@ -74,6 +74,9 @@ public class GameManager : MonoBehaviour
     [Tooltip("Prefab nerf Faster Log")]
     public GameObject nerfFasterLogPrefab;
 
+    [Tooltip("Prefab nerf Fog Screen")]
+    public GameObject nerfFogScreenPrefab;
+
     [Header("Boss System")]
     [Tooltip("Prefab Boss Log berlapis")]
     public GameObject bossLogPrefab;
@@ -479,6 +482,7 @@ public class GameManager : MonoBehaviour
         if (powerUpShieldPrefab != null) availablePowerUps.Add(powerUpShieldPrefab);
         if (powerUpDoubleKnifePrefab != null) availablePowerUps.Add(powerUpDoubleKnifePrefab);
         if (nerfFasterLogPrefab != null) availablePowerUps.Add(nerfFasterLogPrefab);
+        if (nerfFogScreenPrefab != null) availablePowerUps.Add(nerfFogScreenPrefab);
 
         if (availablePowerUps.Count == 0) return;
 
