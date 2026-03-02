@@ -2,8 +2,8 @@ using UnityEngine;
 
 /// <summary>
 /// Controller untuk Boss Log berlapis.
-/// Mengelola 3 lapis log (outer → middle → inner).
-/// Setiap lapis hancur → lapis berikutnya aktif dengan rotasi balik & lebih cepat.
+/// Semua layer TERLIHAT dari awal (berlapis visual).
+/// Hanya collider & LogController yang diaktifkan secara bertahap.
 /// </summary>
 public class BossLogController : MonoBehaviour
 {
@@ -63,7 +63,6 @@ public class BossLogController : MonoBehaviour
 
     // Internal tracking
     private int currentLayerIndex = 0; // 0=outer, 1=middle, 2=inner
-    private LogController activeLogController;
 
     /// <summary>
     /// Inisialisasi boss. Dipanggil oleh GameManager setelah spawn.
@@ -79,23 +78,39 @@ public class BossLogController : MonoBehaviour
         int scaledMiddleTough = middleToughness + extraToughness;
         int scaledInnerTough = innerToughness + extraToughness;
 
-        // Hitung rotation speed yang di-scale
+        // Hitung rotation speed yang di-scale (pertahankan arah positif/negatif)
         float scaledOuterSpeed = outerRotationSpeed + (outerRotationSpeed > 0 ? extraSpeed : -extraSpeed);
         float scaledMiddleSpeed = middleRotationSpeed + (middleRotationSpeed > 0 ? extraSpeed : -extraSpeed);
         float scaledInnerSpeed = innerRotationSpeed + (innerRotationSpeed > 0 ? extraSpeed : -extraSpeed);
 
-        // Setup semua layer LogController
+        // ======= SEMUA LAYER TERLIHAT DARI AWAL =======
+        // Setup LogController pada semua layer
         SetupLayer(layerOuter, scaledOuterTough, scaledOuterSpeed);
         SetupLayer(layerMiddle, scaledMiddleTough, scaledMiddleSpeed);
         SetupLayer(layerInner, scaledInnerTough, scaledInnerSpeed);
 
-        // Mulai dari layer outer, matikan yang lain
-        layerMiddle.SetActive(false);
-        layerInner.SetActive(false);
+        // Semua layer VISIBLE (SetActive true)
+        layerOuter.SetActive(true);
+        layerMiddle.SetActive(true);
+        layerInner.SetActive(true);
+
+        // Tapi hanya outer yang INTERACTABLE (collider aktif)
+        SetLayerInteractable(layerOuter, true);
+        SetLayerInteractable(layerMiddle, false);
+        SetLayerInteractable(layerInner, false);
+
+        // Matikan rotasi pada layer yang belum aktif
+        DisableRotation(layerMiddle);
+        DisableRotation(layerInner);
+        // ================================================
+
         currentLayerIndex = 0;
 
-        // Aktifkan layer outer
-        ActivateLayer(layerOuter, outerObstacles);
+        // Spawn obstacles hanya pada outer layer
+        SpawnObstaclesOnLayer(layerOuter, outerObstacles);
+
+        // Spawn power-up pada outer layer
+        GameManager.instance.SpawnPowerUpOnLog(layerOuter);
 
         Debug.Log($"[Boss] Boss #{bossNumber} spawned! " +
                   $"Outer: {scaledOuterTough}HP/{scaledOuterSpeed}spd, " +
@@ -116,29 +131,72 @@ public class BossLogController : MonoBehaviour
         logCtrl.rotationSpeed = speed;
     }
 
-    private void ActivateLayer(GameObject layer, int obstacleCount)
+    /// <summary>
+    /// Aktifkan/matikan collider pada layer (interactable = bisa kena knife).
+    /// </summary>
+    private void SetLayerInteractable(GameObject layer, bool interactable)
     {
         if (layer == null) return;
 
-        layer.SetActive(true);
+        Collider col = layer.GetComponent<Collider>();
+        if (col != null)
+        {
+            col.enabled = interactable;
+        }
+    }
 
-        activeLogController = layer.GetComponent<LogController>();
+    /// <summary>
+    /// Matikan rotasi pada layer (set speed ke 0 sementara).
+    /// Rotasi asli tersimpan di LogController.rotationSpeed.
+    /// </summary>
+    private void DisableRotation(GameObject layer)
+    {
+        if (layer == null) return;
 
-        // Spawn obstacles pada layer ini
+        LogController logCtrl = layer.GetComponent<LogController>();
+        if (logCtrl != null)
+        {
+            // Simpan speed asli, lalu set ke 0
+            logCtrl.enabled = false;
+        }
+    }
+
+    /// <summary>
+    /// Aktifkan layer berikutnya: collider ON, rotasi ON, spawn obstacles.
+    /// </summary>
+    private void ActivateNextLayer(GameObject layer, int obstacleCount)
+    {
+        if (layer == null) return;
+
+        // Aktifkan collider
+        SetLayerInteractable(layer, true);
+
+        // Aktifkan rotasi
+        LogController logCtrl = layer.GetComponent<LogController>();
+        if (logCtrl != null)
+        {
+            logCtrl.enabled = true;
+        }
+
+        // Spawn obstacles
+        SpawnObstaclesOnLayer(layer, obstacleCount);
+
+        // Spawn power-up
+        GameManager.instance.SpawnPowerUpOnLog(layer);
+    }
+
+    private void SpawnObstaclesOnLayer(GameObject layer, int obstacleCount)
+    {
         LogObstacleSpawner obsSpawner = layer.GetComponent<LogObstacleSpawner>();
         if (obsSpawner != null && obstacleCount > 0)
         {
             obsSpawner.obstacleCount = obstacleCount;
             obsSpawner.SpawnObstacles();
         }
-
-        // Spawn power-up pada layer ini
-        GameManager.instance.SpawnPowerUpOnLog(layer);
     }
 
     /// <summary>
     /// Dipanggil oleh LogController saat layer hancur (toughness <= 0).
-    /// Menggantikan GameManager.LogDestroyed() untuk boss.
     /// </summary>
     public void OnLayerDestroyed()
     {
@@ -154,18 +212,18 @@ public class BossLogController : MonoBehaviour
         {
             // Outer hancur → aktifkan Middle
             Debug.Log("[Boss] Layer Outer hancur! Layer Middle aktif!");
-            ActivateLayer(layerMiddle, middleObstacles);
+            ActivateNextLayer(layerMiddle, middleObstacles);
         }
         else if (currentLayerIndex == 2)
         {
             // Middle hancur → aktifkan Inner
             Debug.Log("[Boss] Layer Middle hancur! Layer Inner (Core) aktif!");
-            ActivateLayer(layerInner, innerObstacles);
+            ActivateNextLayer(layerInner, innerObstacles);
         }
         else
         {
             // Inner hancur → Boss Defeated!
-            Debug.Log("[Boss] BOSS DEFEATED! 🎉");
+            Debug.Log("[Boss] BOSS DEFEATED!");
             GameManager.instance.AddScore(bossDefeatedBonus);
             GameManager.instance.BossDefeated();
         }

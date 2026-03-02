@@ -17,7 +17,7 @@ GameObject:
   - component: {fileID: 7654096669755068653}
   m_Layer: 0
   m_Name: Log Layer 2
-  m_TagString: Untagged
+  m_TagString: Log
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -31,7 +31,7 @@ Transform:
   m_GameObject: {fileID: 2742312338662070270}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 1.5129933, y: -1.9908313, z: 3.0769358}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -117,7 +117,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 974647c4dca32c54289642b0856b3eeb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  obstaclePrefab: {fileID: 0}
+  obstaclePrefab: {fileID: 1323025684312615854, guid: 609eb9a0bbf306f479353850caa8bd3c, type: 3}
   handleDistance: 0.7
   obstacleCount: 0
   minAngleBetween: 40
@@ -176,7 +176,7 @@ GameObject:
   - component: {fileID: 1429625640465106761}
   m_Layer: 0
   m_Name: BossLog
-  m_TagString: Untagged
+  m_TagString: Log
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -190,7 +190,7 @@ Transform:
   m_GameObject: {fileID: 3038434388704382519}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 2.3, z: 0}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 2, y: 2, z: 2}
   m_ConstrainProportionsScale: 1
   m_Children:
@@ -244,7 +244,7 @@ GameObject:
   - component: {fileID: 7384384950884710275}
   m_Layer: 0
   m_Name: Log Core
-  m_TagString: Untagged
+  m_TagString: Log
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -258,7 +258,7 @@ Transform:
   m_GameObject: {fileID: 3122317115448852022}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 1.5129933, y: -1.9908313, z: 3.0769358}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -345,7 +345,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 974647c4dca32c54289642b0856b3eeb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  obstaclePrefab: {fileID: 0}
+  obstaclePrefab: {fileID: 1323025684312615854, guid: 609eb9a0bbf306f479353850caa8bd3c, type: 3}
   handleDistance: 0.7
   obstacleCount: 0
   minAngleBetween: 40
@@ -409,7 +409,7 @@ GameObject:
   - component: {fileID: 4605149424437890590}
   m_Layer: 0
   m_Name: Log Layer 1
-  m_TagString: Untagged
+  m_TagString: Log
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -423,7 +423,7 @@ Transform:
   m_GameObject: {fileID: 3280282273973156942}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 1.5129933, y: -1.9908313, z: 3.0769358}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -509,7 +509,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 974647c4dca32c54289642b0856b3eeb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  obstaclePrefab: {fileID: 0}
+  obstaclePrefab: {fileID: 1323025684312615854, guid: 609eb9a0bbf306f479353850caa8bd3c, type: 3}
   handleDistance: 0.7
   obstacleCount: 0
   minAngleBetween: 40
