@@ -70,6 +70,10 @@ public class GameManager : MonoBehaviour
     [Tooltip("Jarak power-up dari pusat log (fallback jika tidak ada LogObstacleSpawner)")]
     public float powerUpDistance = 0.5f;
 
+    [Header("Nerf System")]
+    [Tooltip("Prefab nerf Faster Log")]
+    public GameObject nerfFasterLogPrefab;
+
     [Header("Boss System")]
     [Tooltip("Prefab Boss Log berlapis")]
     public GameObject bossLogPrefab;
@@ -466,11 +470,6 @@ public class GameManager : MonoBehaviour
         Debug.Log($"[Boss] Boss Level {currentLevel}! Boss #{currentLevel / bossEveryNLevels}");
     }
 
-    /// <summary>
-    /// Spawn power-up pada log. Public agar BossLogController bisa panggil.
-    /// Menggunakan handleDistance dari LogObstacleSpawner jika ada,
-    /// dan lossyScale untuk kompensasi scale yang benar.
-    /// </summary>
     public void SpawnPowerUpOnLog(GameObject log)
     {
         List<GameObject> availablePowerUps = new List<GameObject>();
@@ -479,6 +478,7 @@ public class GameManager : MonoBehaviour
         if (powerUpScoreMultiplierPrefab != null) availablePowerUps.Add(powerUpScoreMultiplierPrefab);
         if (powerUpShieldPrefab != null) availablePowerUps.Add(powerUpShieldPrefab);
         if (powerUpDoubleKnifePrefab != null) availablePowerUps.Add(powerUpDoubleKnifePrefab);
+        if (nerfFasterLogPrefab != null) availablePowerUps.Add(nerfFasterLogPrefab);
 
         if (availablePowerUps.Count == 0) return;
 
@@ -487,14 +487,12 @@ public class GameManager : MonoBehaviour
 
         GameObject chosenPrefab = availablePowerUps[Random.Range(0, availablePowerUps.Count)];
 
-        // ===== FIX: Gunakan handleDistance dari LogObstacleSpawner jika ada =====
         float distance = powerUpDistance;
         LogObstacleSpawner obsSpawner = log.GetComponent<LogObstacleSpawner>();
         if (obsSpawner != null)
         {
             distance = obsSpawner.handleDistance;
         }
-        // ========================================================================
 
         float angle = Random.Range(0f, 360f);
         float rad = angle * Mathf.Deg2Rad;
@@ -508,7 +506,6 @@ public class GameManager : MonoBehaviour
         GameObject powerUp = Instantiate(chosenPrefab, log.transform);
         powerUp.transform.localPosition = localPos;
 
-        // ===== FIX: Gunakan lossyScale untuk kompensasi yang benar =====
         Vector3 worldScale = log.transform.lossyScale;
         Vector3 prefabScale = chosenPrefab.transform.localScale;
         powerUp.transform.localScale = new Vector3(
@@ -516,7 +513,6 @@ public class GameManager : MonoBehaviour
             prefabScale.y / worldScale.y,
             prefabScale.z / worldScale.z
         );
-        // ================================================================
 
         Debug.Log($"[PowerUp] {chosenPrefab.name} spawned on {log.name} at angle {angle:F0}°, distance {distance}");
     }

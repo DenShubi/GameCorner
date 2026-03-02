@@ -10,6 +10,10 @@ public class LogController : MonoBehaviour
     private bool isSlowed = false;
     // ==========================
 
+    // ======= FASTER LOG =======
+    private bool isFaster = false;
+    // ==========================
+
     void Start()
     {
         originalRotationSpeed = rotationSpeed;
@@ -27,32 +31,25 @@ public class LogController : MonoBehaviour
         toughness -= damage;
         if (toughness <= 0)
         {
-            // Matikan collider agar tidak bisa dipukul lagi saat proses hancur
             if (GetComponent<Collider>()) GetComponent<Collider>().enabled = false;
 
-            // ======= EFEK HANCUR BERKEPING =======
             LogShatter shatter = GetComponent<LogShatter>();
             if (shatter != null)
             {
                 shatter.Shatter();
             }
-            // =====================================
 
-            // ======= CEK: apakah ini bagian dari Boss? =======
             BossLogController boss = GetComponentInParent<BossLogController>();
             if (boss != null)
             {
-                // Ini layer boss → beritahu boss
                 boss.OnLayerDestroyed();
                 gameObject.SetActive(false);
             }
             else
             {
-                // Log biasa → flow normal
                 GameManager.instance.LogDestroyed();
                 Destroy(gameObject);
             }
-            // =================================================
         }
     }
 
@@ -63,6 +60,12 @@ public class LogController : MonoBehaviour
     /// </summary>
     public void ApplyTimeSlow(float multiplier, float duration)
     {
+        // Jika sedang faster, hapus dulu faster
+        if (isFaster)
+        {
+            RemoveFasterLog();
+        }
+
         if (isSlowed)
         {
             CancelInvoke(nameof(RemoveTimeSlow));
@@ -90,4 +93,46 @@ public class LogController : MonoBehaviour
     }
 
     // =================================
+
+    // ======= FASTER LOG SYSTEM (NERF) =======
+
+    /// <summary>
+    /// Percepat rotasi log. Dipanggil oleh NerfFasterLog.
+    /// </summary>
+    public void ApplyFasterLog(float multiplier, float duration)
+    {
+        // Jika sedang slow, hapus dulu slow
+        if (isSlowed)
+        {
+            RemoveTimeSlow();
+        }
+
+        if (isFaster)
+        {
+            // Sudah faster, perpanjang durasi saja
+            CancelInvoke(nameof(RemoveFasterLog));
+            Invoke(nameof(RemoveFasterLog), duration);
+            return;
+        }
+
+        isFaster = true;
+        originalRotationSpeed = rotationSpeed;
+        rotationSpeed *= multiplier;
+
+        Debug.Log($"[FasterLog] Speed: {originalRotationSpeed} → {rotationSpeed}");
+
+        Invoke(nameof(RemoveFasterLog), duration);
+    }
+
+    private void RemoveFasterLog()
+    {
+        if (!isFaster) return;
+
+        rotationSpeed = originalRotationSpeed;
+        isFaster = false;
+
+        Debug.Log($"[FasterLog] Speed kembali normal: {rotationSpeed}");
+    }
+
+    // =========================================
 }
