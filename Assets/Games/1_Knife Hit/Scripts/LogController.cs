@@ -38,8 +38,21 @@ public class LogController : MonoBehaviour
             }
             // =====================================
 
-            GameManager.instance.LogDestroyed();
-            Destroy(gameObject);
+            // ======= CEK: apakah ini bagian dari Boss? =======
+            BossLogController boss = GetComponentInParent<BossLogController>();
+            if (boss != null)
+            {
+                // Ini layer boss → beritahu boss
+                boss.OnLayerDestroyed();
+                gameObject.SetActive(false);
+            }
+            else
+            {
+                // Log biasa → flow normal
+                GameManager.instance.LogDestroyed();
+                Destroy(gameObject);
+            }
+            // =================================================
         }
     }
 
@@ -52,7 +65,6 @@ public class LogController : MonoBehaviour
     {
         if (isSlowed)
         {
-            // Jika sudah slow, reset timer saja (perpanjang durasi)
             CancelInvoke(nameof(RemoveTimeSlow));
             Invoke(nameof(RemoveTimeSlow), duration);
             return;
@@ -64,7 +76,6 @@ public class LogController : MonoBehaviour
 
         Debug.Log($"[TimeSlow] Speed: {originalRotationSpeed} → {rotationSpeed}");
 
-        // Auto-remove setelah durasi habis
         Invoke(nameof(RemoveTimeSlow), duration);
     }
 

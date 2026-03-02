@@ -763,6 +763,8 @@ MonoBehaviour:
   powerUpDoubleKnifePrefab: {fileID: 4348244046748689651, guid: 1d6fde61f62617a4abc40a17c267d1f4, type: 3}
   powerUpChance: 100
   powerUpDistance: 1
+  bossLogPrefab: {fileID: 3038434388704382519, guid: df154241b7b1ca449b168507fce89241, type: 3}
+  bossEveryNLevels: 5
   logPrefab: {fileID: 8829691866987002683, guid: eb43b4e046e2b14f684f73369ef84b39, type: 3}
   logSpawnPoint: {fileID: 2040008827}
   maxKnivesOnLog: 8

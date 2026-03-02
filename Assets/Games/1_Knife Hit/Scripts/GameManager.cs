@@ -70,6 +70,13 @@ public class GameManager : MonoBehaviour
     [Tooltip("Jarak power-up dari pusat log")]
     public float powerUpDistance = 0.5f;
 
+    [Header("Boss System")]
+    [Tooltip("Prefab Boss Log berlapis")]
+    public GameObject bossLogPrefab;
+
+    [Tooltip("Setiap berapa level boss muncul")]
+    public int bossEveryNLevels = 5;
+
     [Header("Settings")]
     public GameObject logPrefab;
     public Transform logSpawnPoint;
@@ -104,6 +111,11 @@ public class GameManager : MonoBehaviour
     private int doubleKnifeRemaining = 0;
     // ============================
 
+    // ======= BOSS TRACKING =======
+    private bool isBossLevel = false;
+    private GameObject currentBossObject;
+    // =============================
+
     void Awake() => instance = this;
 
     void Start()
@@ -123,7 +135,6 @@ public class GameManager : MonoBehaviour
     {
         if (isGameOver) return;
 
-        // ===== SCORE MULTIPLIER: kalikan score =====
         int finalPoints = points * scoreMultiplier;
         currentScore += finalPoints;
         scoreText.text = currentScore.ToString();
@@ -132,7 +143,6 @@ public class GameManager : MonoBehaviour
         {
             Debug.Log($"[ScoreMultiplier] {points} x{scoreMultiplier} = {finalPoints}");
         }
-        // ============================================
     }
 
     public void RegisterStuckKnife(GameObject knife)
@@ -228,28 +238,17 @@ public class GameManager : MonoBehaviour
 
     // ======= DOUBLE KNIFE SYSTEM =======
 
-    /// <summary>
-    /// Aktifkan double knife. Dipanggil oleh PowerUpDoubleKnife.
-    /// </summary>
     public void ActivateDoubleKnife(int throwCount)
     {
         doubleKnifeRemaining += throwCount;
         Debug.Log($"[DoubleKnife] Aktif! Sisa throw double: {doubleKnifeRemaining}");
     }
 
-    /// <summary>
-    /// Cek apakah double knife masih aktif.
-    /// Dipanggil oleh KnifeSpawner saat spawn knife baru.
-    /// </summary>
     public bool IsDoubleKnifeActive()
     {
         return doubleKnifeRemaining > 0;
     }
 
-    /// <summary>
-    /// Konsumsi 1 charge double knife setelah throw.
-    /// Dipanggil oleh KnifeSpawner setelah player tap.
-    /// </summary>
     public void ConsumeDoubleKnife()
     {
         if (doubleKnifeRemaining > 0)
@@ -268,7 +267,6 @@ public class GameManager : MonoBehaviour
 
         heartCooldown = true;
 
-        // ===== SHIELD: cek apakah shield aktif =====
         if (TryUseShield())
         {
             Debug.Log("[Shield] Shield melindungi! Heart tidak berkurang.");
@@ -282,7 +280,6 @@ public class GameManager : MonoBehaviour
             Invoke(nameof(ResetHeartCooldown), 0.5f);
             return;
         }
-        // ============================================
 
         currentHearts--;
         Debug.Log($"[Heart] Sisa heart: {currentHearts}/{maxHearts}");
@@ -313,11 +310,51 @@ public class GameManager : MonoBehaviour
         heartCooldown = false;
     }
 
+    /// <summary>
+    /// Dipanggil saat log biasa (non-boss) hancur.
+    /// </summary>
     public void LogDestroyed()
     {
         AddScore(50);
 
-        // ======= PISAU IKUT TERPENTAL =======
+        ScatterStuckKnives();
+
+        // ======= LEVEL UP =======
+        currentLevel++;
+        UpdateLevelUI();
+        Debug.Log($"[Level] Naik ke Level {currentLevel}!");
+        // =========================
+
+        Invoke(nameof(SpawnNewLog), 0.5f);
+    }
+
+    /// <summary>
+    /// Dipanggil oleh BossLogController saat SEMUA lapis boss hancur.
+    /// </summary>
+    public void BossDefeated()
+    {
+        isBossLevel = false;
+
+        // Hancurkan parent boss object
+        if (currentBossObject != null)
+        {
+            Destroy(currentBossObject);
+            currentBossObject = null;
+        }
+
+        // Level up
+        currentLevel++;
+        UpdateLevelUI();
+        Debug.Log($"[Boss] Boss defeated! Naik ke Level {currentLevel}!");
+
+        Invoke(nameof(SpawnNewLog), 1f);
+    }
+
+    /// <summary>
+    /// Scatter semua knife yang menancap. Dipakai oleh LogDestroyed dan BossLogController.
+    /// </summary>
+    public void ScatterStuckKnives()
+    {
         foreach (GameObject k in stuckKnives)
         {
             if (k != null)
@@ -344,15 +381,6 @@ public class GameManager : MonoBehaviour
             }
         }
         stuckKnives.Clear();
-        // =====================================
-
-        // ======= LEVEL UP =======
-        currentLevel++;
-        UpdateLevelUI();
-        Debug.Log($"[Level] Naik ke Level {currentLevel}!");
-        // =========================
-
-        Invoke(nameof(SpawnNewLog), 0.5f);
     }
 
     private int GetToughnessForLevel()
@@ -379,17 +407,39 @@ public class GameManager : MonoBehaviour
     {
         if (levelText != null)
         {
-            levelText.text = "Level " + currentLevel;
+            if (isBossLevel)
+            {
+                levelText.text = "⚔ BOSS Level " + currentLevel + " ⚔";
+            }
+            else
+            {
+                levelText.text = "Level " + currentLevel;
+            }
         }
+    }
+
+    /// <summary>
+    /// Cek apakah level saat ini adalah boss level.
+    /// </summary>
+    private bool IsBossLevel()
+    {
+        return currentLevel % bossEveryNLevels == 0;
     }
 
     void SpawnNewLog()
     {
+        // ======= CEK BOSS LEVEL =======
+        if (IsBossLevel() && bossLogPrefab != null)
+        {
+            SpawnBossLog();
+            return;
+        }
+        // ===============================
+
         if (logPrefab != null && logSpawnPoint != null)
         {
             GameObject newLog = Instantiate(logPrefab, logSpawnPoint.position, logSpawnPoint.rotation);
 
-            // Set toughness dan rotation speed
             LogController logCtrl = newLog.GetComponent<LogController>();
             if (logCtrl != null)
             {
@@ -397,7 +447,6 @@ public class GameManager : MonoBehaviour
                 logCtrl.rotationSpeed = GetRotationSpeedForLevel();
             }
 
-            // ======= SPAWN OBSTACLES =======
             int obstacleCount = GetObstacleCountForLevel();
             LogObstacleSpawner obsSpawner = newLog.GetComponent<LogObstacleSpawner>();
             if (obsSpawner != null && obstacleCount > 0)
@@ -405,11 +454,8 @@ public class GameManager : MonoBehaviour
                 obsSpawner.obstacleCount = obstacleCount;
                 obsSpawner.SpawnObstacles();
             }
-            // ================================
 
-            // ======= SPAWN POWER-UP (random chance) =======
             SpawnPowerUpOnLog(newLog);
-            // ===============================================
 
             Debug.Log($"[Level {currentLevel}] Toughness: {GetToughnessForLevel()}, " +
                       $"Rotation: {GetRotationSpeedForLevel()}, " +
@@ -422,9 +468,30 @@ public class GameManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Spawn power-up pada log. Random pilih dari semua power-up yang tersedia.
+    /// Spawn Boss Log berlapis.
     /// </summary>
-    private void SpawnPowerUpOnLog(GameObject log)
+    private void SpawnBossLog()
+    {
+        isBossLevel = true;
+        UpdateLevelUI();
+
+        currentBossObject = Instantiate(bossLogPrefab, logSpawnPoint.position, logSpawnPoint.rotation);
+
+        BossLogController bossCtrl = currentBossObject.GetComponent<BossLogController>();
+        if (bossCtrl != null)
+        {
+            // Boss ke berapa? (level 5 = boss #1, level 10 = boss #2, ...)
+            int bossNumber = currentLevel / bossEveryNLevels;
+            bossCtrl.InitBoss(bossNumber);
+        }
+
+        Debug.Log($"[Boss] Boss Level {currentLevel}! Boss #{currentLevel / bossEveryNLevels}");
+    }
+
+    /// <summary>
+    /// Spawn power-up pada log. Public agar BossLogController bisa panggil.
+    /// </summary>
+    public void SpawnPowerUpOnLog(GameObject log)
     {
         List<GameObject> availablePowerUps = new List<GameObject>();
         if (powerUpTimeSlowPrefab != null) availablePowerUps.Add(powerUpTimeSlowPrefab);
@@ -435,14 +502,11 @@ public class GameManager : MonoBehaviour
 
         if (availablePowerUps.Count == 0) return;
 
-        // Random chance
         int roll = Random.Range(0, 100);
         if (roll >= powerUpChance) return;
 
-        // Pilih power-up secara acak
         GameObject chosenPrefab = availablePowerUps[Random.Range(0, availablePowerUps.Count)];
 
-        // Posisi acak di sekitar log
         float angle = Random.Range(0f, 360f);
         float rad = angle * Mathf.Deg2Rad;
 
@@ -452,11 +516,9 @@ public class GameManager : MonoBehaviour
             0f
         );
 
-        // Spawn sebagai child log (ikut berputar)
         GameObject powerUp = Instantiate(chosenPrefab, log.transform);
         powerUp.transform.localPosition = localPos;
 
-        // Kompensasi scale parent log
         Vector3 logScale = log.transform.localScale;
         Vector3 prefabScale = chosenPrefab.transform.localScale;
         powerUp.transform.localScale = new Vector3(
@@ -483,4 +545,5 @@ public class GameManager : MonoBehaviour
     public int GetCurrentHearts() => currentHearts;
     public int GetShieldCharges() => shieldCharges;
     public int GetDoubleKnifeRemaining() => doubleKnifeRemaining;
+    public bool GetIsBossLevel() => isBossLevel;
 }
