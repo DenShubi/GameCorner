@@ -4,6 +4,7 @@ using UnityEngine;
 /// Spawn obstacle (pisau yang sudah menancap) pada log saat pertama kali muncul.
 /// Pivot knife ada di handle, jadi kita posisikan handle di luar log
 /// dan arahkan blade ke pusat log.
+/// Menggunakan lossyScale untuk menghitung scale yang benar di nested parent (boss).
 /// </summary>
 public class LogObstacleSpawner : MonoBehaviour
 {
@@ -33,14 +34,15 @@ public class LogObstacleSpawner : MonoBehaviour
         // Scale prefab knife asli (world space)
         Vector3 knifeWorldScale = obstaclePrefab.transform.localScale;
 
-        // Scale log (parent) — obstacle jadi child log, jadi scale-nya dikali parent
-        // Kita perlu inverse agar hasil akhir = knifeWorldScale
-        Vector3 logScale = transform.localScale;
+        // ===== FIX: Gunakan lossyScale (world scale) untuk kompensasi =====
+        // lossyScale memperhitungkan semua parent (termasuk BossLog parent)
+        Vector3 worldScale = transform.lossyScale;
         Vector3 correctedScale = new Vector3(
-            knifeWorldScale.x / logScale.x,
-            knifeWorldScale.y / logScale.y,
-            knifeWorldScale.z / logScale.z
+            knifeWorldScale.x / worldScale.x,
+            knifeWorldScale.y / worldScale.y,
+            knifeWorldScale.z / worldScale.z
         );
+        // ==================================================================
 
         float[] angles = GenerateSpacedAngles(obstacleCount, minAngleBetween);
 
@@ -61,7 +63,7 @@ public class LogObstacleSpawner : MonoBehaviour
 
             obstacle.transform.localPosition = localPos;
 
-            // ===== FIX SCALE: kompensasi scale parent log =====
+            // ===== FIX SCALE: kompensasi world scale =====
             obstacle.transform.localScale = correctedScale;
 
             // ===== ROTASI: Blade mengarah ke pusat log =====
@@ -91,7 +93,7 @@ public class LogObstacleSpawner : MonoBehaviour
         }
 
         Debug.Log($"[Obstacle] Spawned {obstacleCount} obstacles. " +
-                  $"Log scale: {logScale}, Corrected knife scale: {correctedScale}");
+                  $"World scale: {worldScale}, Corrected knife scale: {correctedScale}");
     }
 
     private float[] GenerateSpacedAngles(int count, float minAngle)

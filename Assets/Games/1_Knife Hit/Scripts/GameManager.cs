@@ -67,7 +67,7 @@ public class GameManager : MonoBehaviour
     [Range(0, 100)]
     public int powerUpChance = 30;
 
-    [Tooltip("Jarak power-up dari pusat log")]
+    [Tooltip("Jarak power-up dari pusat log (fallback jika tidak ada LogObstacleSpawner)")]
     public float powerUpDistance = 0.5f;
 
     [Header("Boss System")]
@@ -310,39 +310,29 @@ public class GameManager : MonoBehaviour
         heartCooldown = false;
     }
 
-    /// <summary>
-    /// Dipanggil saat log biasa (non-boss) hancur.
-    /// </summary>
     public void LogDestroyed()
     {
         AddScore(50);
 
         ScatterStuckKnives();
 
-        // ======= LEVEL UP =======
         currentLevel++;
         UpdateLevelUI();
         Debug.Log($"[Level] Naik ke Level {currentLevel}!");
-        // =========================
 
         Invoke(nameof(SpawnNewLog), 0.5f);
     }
 
-    /// <summary>
-    /// Dipanggil oleh BossLogController saat SEMUA lapis boss hancur.
-    /// </summary>
     public void BossDefeated()
     {
         isBossLevel = false;
 
-        // Hancurkan parent boss object
         if (currentBossObject != null)
         {
             Destroy(currentBossObject);
             currentBossObject = null;
         }
 
-        // Level up
         currentLevel++;
         UpdateLevelUI();
         Debug.Log($"[Boss] Boss defeated! Naik ke Level {currentLevel}!");
@@ -350,9 +340,6 @@ public class GameManager : MonoBehaviour
         Invoke(nameof(SpawnNewLog), 1f);
     }
 
-    /// <summary>
-    /// Scatter semua knife yang menancap. Dipakai oleh LogDestroyed dan BossLogController.
-    /// </summary>
     public void ScatterStuckKnives()
     {
         foreach (GameObject k in stuckKnives)
@@ -418,9 +405,6 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Cek apakah level saat ini adalah boss level.
-    /// </summary>
     private bool IsBossLevel()
     {
         return currentLevel % bossEveryNLevels == 0;
@@ -428,13 +412,11 @@ public class GameManager : MonoBehaviour
 
     void SpawnNewLog()
     {
-        // ======= CEK BOSS LEVEL =======
         if (IsBossLevel() && bossLogPrefab != null)
         {
             SpawnBossLog();
             return;
         }
-        // ===============================
 
         if (logPrefab != null && logSpawnPoint != null)
         {
@@ -467,9 +449,6 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Spawn Boss Log berlapis.
-    /// </summary>
     private void SpawnBossLog()
     {
         isBossLevel = true;
@@ -480,7 +459,6 @@ public class GameManager : MonoBehaviour
         BossLogController bossCtrl = currentBossObject.GetComponent<BossLogController>();
         if (bossCtrl != null)
         {
-            // Boss ke berapa? (level 5 = boss #1, level 10 = boss #2, ...)
             int bossNumber = currentLevel / bossEveryNLevels;
             bossCtrl.InitBoss(bossNumber);
         }
@@ -490,6 +468,8 @@ public class GameManager : MonoBehaviour
 
     /// <summary>
     /// Spawn power-up pada log. Public agar BossLogController bisa panggil.
+    /// Menggunakan handleDistance dari LogObstacleSpawner jika ada,
+    /// dan lossyScale untuk kompensasi scale yang benar.
     /// </summary>
     public void SpawnPowerUpOnLog(GameObject log)
     {
@@ -507,27 +487,38 @@ public class GameManager : MonoBehaviour
 
         GameObject chosenPrefab = availablePowerUps[Random.Range(0, availablePowerUps.Count)];
 
+        // ===== FIX: Gunakan handleDistance dari LogObstacleSpawner jika ada =====
+        float distance = powerUpDistance;
+        LogObstacleSpawner obsSpawner = log.GetComponent<LogObstacleSpawner>();
+        if (obsSpawner != null)
+        {
+            distance = obsSpawner.handleDistance;
+        }
+        // ========================================================================
+
         float angle = Random.Range(0f, 360f);
         float rad = angle * Mathf.Deg2Rad;
 
         Vector3 localPos = new Vector3(
-            Mathf.Sin(rad) * powerUpDistance,
-            Mathf.Cos(rad) * powerUpDistance,
+            Mathf.Sin(rad) * distance,
+            Mathf.Cos(rad) * distance,
             0f
         );
 
         GameObject powerUp = Instantiate(chosenPrefab, log.transform);
         powerUp.transform.localPosition = localPos;
 
-        Vector3 logScale = log.transform.localScale;
+        // ===== FIX: Gunakan lossyScale untuk kompensasi yang benar =====
+        Vector3 worldScale = log.transform.lossyScale;
         Vector3 prefabScale = chosenPrefab.transform.localScale;
         powerUp.transform.localScale = new Vector3(
-            prefabScale.x / logScale.x,
-            prefabScale.y / logScale.y,
-            prefabScale.z / logScale.z
+            prefabScale.x / worldScale.x,
+            prefabScale.y / worldScale.y,
+            prefabScale.z / worldScale.z
         );
+        // ================================================================
 
-        Debug.Log($"[PowerUp] {chosenPrefab.name} spawned at angle {angle:F0}°");
+        Debug.Log($"[PowerUp] {chosenPrefab.name} spawned on {log.name} at angle {angle:F0}°, distance {distance}");
     }
 
     public void TriggerGameOver()
