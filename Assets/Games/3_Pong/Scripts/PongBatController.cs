@@ -1,10 +1,10 @@
 using UnityEngine;
 
 /// <summary>
-/// Kontrol Pong Bat 3D untuk mobile PvP.
-/// - Bat bergerak kiri-kanan (sumbu X) mengikuti posisi jari.
-/// - Bat otomatis rotate menghadap tengah layar berdasarkan posisi X-nya.
-/// - Pivot bat ada di handle (bawah bat).
+/// Kontrol Pong Bat 3D untuk mobile PvP (Top-Down Camera).
+/// Camera setup: Position(0, Y, 0), Rotation(90, 0, 0) - melihat ke bawah.
+/// Bat bergerak kiri-kanan (sumbu X) dan auto-rotate Y menghadap tengah layar.
+/// Pivot bat ada di handle.
 /// </summary>
 public class PongBatController : MonoBehaviour
 {
@@ -38,8 +38,9 @@ public class PongBatController : MonoBehaviour
     private float targetX;
     private float currentX;
     private Vector3 basePosition;
-    private float screenCenterX; // posisi X tengah layar dalam world space
+    private float screenCenterWorldX;
     private float currentAngleY = 0f;
+    private Quaternion initialRotation;
 
     void Start()
     {
@@ -48,11 +49,12 @@ public class PongBatController : MonoBehaviour
         targetX = basePosition.x;
         currentX = basePosition.x;
 
+        // Simpan rotasi awal bat dari Scene (termasuk jika P2 sudah di-rotate di Inspector)
+        initialRotation = transform.rotation;
+
         // Hitung posisi X tengah layar di world space
-        screenCenterX = mainCamera.ScreenToWorldPoint(
-            new Vector3(Screen.width * 0.5f, Screen.height * 0.5f,
-                        Mathf.Abs(mainCamera.transform.position.z))
-        ).x;
+        // Untuk top-down camera, kita gunakan plane Y=0 (atau Y bat)
+        screenCenterWorldX = ScreenToWorldX(Screen.width * 0.5f, Screen.height * 0.5f);
     }
 
     void Update()
@@ -90,13 +92,8 @@ public class PongBatController : MonoBehaviour
 
     void ComputeTargetX(Vector2 screenPos)
     {
-        // Posisi sentuhan di world space
-        Vector3 touchWorld = mainCamera.ScreenToWorldPoint(
-            new Vector3(screenPos.x, screenPos.y, Mathf.Abs(mainCamera.transform.position.z))
-        );
-
-        // Hitung target posisi X berdasarkan touch
-        float newX = Mathf.Lerp(basePosition.x, touchWorld.x, horizontalFollowStrength);
+        float worldX = ScreenToWorldX(screenPos.x, screenPos.y);
+        float newX = Mathf.Lerp(basePosition.x, worldX, horizontalFollowStrength);
         targetX = Mathf.Clamp(newX, xMin, xMax);
     }
 
@@ -108,32 +105,48 @@ public class PongBatController : MonoBehaviour
 
     /// <summary>
     /// Bat otomatis rotate menghadap tengah layar berdasarkan posisi X-nya.
-    /// - Bat di kanan tengah → rotate ke kiri (menghadap tengah)
-    /// - Bat di kiri tengah  → rotate ke kanan (menghadap tengah)
-    /// - Bat di tengah       → tidak rotate (lurus)
+    /// Menggunakan initialRotation sebagai base, sehingga P1 dan P2
+    /// tidak perlu special case — rotasi relatif terhadap orientasi awal masing-masing.
     /// </summary>
     void ApplyAutoRotation()
     {
-        // Hitung offset dari tengah layar
-        float offsetFromCenter = currentX - screenCenterX;
+        float offsetFromCenter = currentX - screenCenterWorldX;
 
-        // Normalisasi offset: -1 (paling kiri) sampai +1 (paling kanan)
         float halfRange = (xMax - xMin) * 0.5f;
         float normalizedOffset = Mathf.Clamp(offsetFromCenter / halfRange, -1f, 1f);
 
-        // Target sudut: negatif saat di kanan (menghadap ke tengah), positif saat di kiri
+        // Bat di kanan → rotate menghadap tengah (negatif Y)
+        // Bat di kiri  → rotate menghadap tengah (positif Y)
         float targetAngleY = -normalizedOffset * maxRotationAngle;
-
-        // P2 (atas) orientasi bat sudah terbalik, kompensasi arah
-        if (playerSide == PlayerSide.Top)
-            targetAngleY = -targetAngleY;
 
         // Smooth rotation
         currentAngleY = Mathf.LerpAngle(currentAngleY, targetAngleY, Time.deltaTime * rotationSpeed);
 
-        // Pertahankan rotation X dan Z asli dari model
-        Vector3 euler = transform.eulerAngles;
-        transform.rotation = Quaternion.Euler(euler.x, currentAngleY, euler.z);
+        // Terapkan rotasi RELATIF terhadap rotasi awal bat
+        // Ini otomatis handle P2 yang sudah di-rotate 180° di Scene
+        transform.rotation = initialRotation * Quaternion.Euler(0f, currentAngleY, 0f);
+    }
+
+    /// <summary>
+    /// Konversi screen position ke world X menggunakan Raycast ke plane bat.
+    /// Bekerja dengan kamera jenis apapun (top-down, perspective, ortho).
+    /// </summary>
+    float ScreenToWorldX(float screenX, float screenY)
+    {
+        Ray ray = mainCamera.ScreenPointToRay(new Vector3(screenX, screenY, 0f));
+
+        // Buat plane horizontal di ketinggian bat
+        Plane batPlane = new Plane(Vector3.up, new Vector3(0f, basePosition.y, 0f));
+
+        if (batPlane.Raycast(ray, out float distance))
+        {
+            return ray.GetPoint(distance).x;
+        }
+
+        // Fallback jika ray tidak hit plane
+        return mainCamera.ScreenToWorldPoint(
+            new Vector3(screenX, screenY, Mathf.Abs(mainCamera.transform.position.y))
+        ).x;
     }
 
     bool IsInMyZone(Vector2 screenPos)
@@ -146,17 +159,16 @@ public class PongBatController : MonoBehaviour
 
     void OnDrawGizmosSelected()
     {
-        if (!Application.isPlaying || mainCamera == null) return;
+        Camera cam = Application.isPlaying ? mainCamera : Camera.main;
+        if (cam == null) return;
 
-        // Gambar garis pivot di tengah layar
-        Vector3 pivotWorld = mainCamera.ScreenToWorldPoint(
-            new Vector3(Screen.width * 0.5f, Screen.height * 0.5f,
-                        Mathf.Abs(mainCamera.transform.position.z))
-        );
+        // Gambar garis tengah layar
+        Vector3 center = transform.position;
+        center.x = Application.isPlaying ? screenCenterWorldX : 0f;
 
         Gizmos.color = playerSide == PlayerSide.Bottom ? Color.cyan : Color.red;
-        Gizmos.DrawLine(pivotWorld + Vector3.left * 5f, pivotWorld + Vector3.right * 5f);
-        Gizmos.DrawSphere(pivotWorld, 0.08f);
+        Gizmos.DrawLine(center + Vector3.left * 5f, center + Vector3.right * 5f);
+        Gizmos.DrawSphere(center, 0.08f);
 
         // Gambar batas gerak X
         Gizmos.color = Color.yellow;
