@@ -9,6 +9,7 @@ TagManager:
   - Bat
   - GoalP1
   - GoalP2
+  - Wall
   layers:
   - Default
   - TransparentFX

@@ -14,11 +14,10 @@ public class PongGameManager : MonoBehaviour
 
     [Header("References")]
     public PongBall ball;
-    public PongCountdown countdown;  // ← tambahan
+    public PongCountdown countdown;
 
-    // Internal
-    private int scoreP1 = 0;
-    private int scoreP2 = 0;
+    private int scoreP1  = 0;
+    private int scoreP2  = 0;
     private bool gameOver = false;
 
     void Start()
@@ -41,40 +40,41 @@ public class PongGameManager : MonoBehaviour
 
         if (!CheckWinCondition())
         {
-            // Belum ada yang menang → countdown lagi
-            countdown?.RestartCountdown();
+            // Belum ada pemenang → countdown ulang
+            // Delay kecil agar pemain sempat lihat bola masuk gawang
+            Invoke(nameof(TriggerCountdown), 0.5f);
         }
     }
 
-    // Return true jika ada pemenang
+    void TriggerCountdown()
+    {
+        countdown?.RestartCountdown();
+    }
+
     bool CheckWinCondition()
     {
-        if (scoreP1 >= maxScore)      { EndGame(1); return true; }
-        if (scoreP2 >= maxScore)      { EndGame(2); return true; }
+        if (scoreP1 >= maxScore) { EndGame(1); return true; }
+        if (scoreP2 >= maxScore) { EndGame(2); return true; }
         return false;
     }
 
     void EndGame(int winner)
     {
         gameOver = true;
-        Debug.Log($"[Pong] Player {winner} Menang!");
+
+        ball?.StopBall();
 
         if (gameOverPanel != null) gameOverPanel.SetActive(true);
         if (winnerText    != null) winnerText.text = $"Player {winner}\nMenang! 🏆";
 
-        if (ball != null)
-        {
-            ball.enabled = false;
-            var rb = ball.GetComponent<Rigidbody>();
-            if (rb != null) rb.linearVelocity = Vector3.zero;
-        }
+        Debug.Log($"[Pong] Player {winner} Menang!");
     }
 
     public void RestartGame()
     {
-        scoreP1  = 0;
-        scoreP2  = 0;
-        gameOver = false;
+        scoreP1   = 0;
+        scoreP2   = 0;
+        gameOver  = false;
 
         if (gameOverPanel != null) gameOverPanel.SetActive(false);
 

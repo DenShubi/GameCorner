@@ -2,28 +2,17 @@ using System.Collections;
 using UnityEngine;
 using TMPro;
 
-/// <summary>
-/// Countdown 3-2-1-GO! sebelum bola diluncurkan.
-/// Pasang script ini pada GameManager atau GameObject terpisah.
-/// </summary>
 public class PongCountdown : MonoBehaviour
 {
     [Header("UI References")]
-    [Tooltip("Text untuk menampilkan angka countdown")]
     public TextMeshProUGUI countdownText;
 
-    [Tooltip("Durasi tiap angka ditampilkan (detik)")]
+    [Header("Timing")]
     public float countdownInterval = 1f;
-
-    [Tooltip("Durasi teks GO! ditampilkan sebelum menghilang")]
     public float goDuration = 0.6f;
 
     [Header("Animation")]
-    [Tooltip("Ukuran font saat angka muncul")]
     public float punchScale = 1.4f;
-
-    [Tooltip("Kecepatan animasi scale")]
-    public float animSpeed = 8f;
 
     [Header("References")]
     public PongBall ball;
@@ -33,78 +22,57 @@ public class PongCountdown : MonoBehaviour
         if (countdownText != null)
             countdownText.gameObject.SetActive(false);
 
-        // Pastikan bola tidak bergerak dulu
-        if (ball != null)
-            ball.enabled = false;
+        StartCoroutine(RunCountdown());
+    }
+
+    public void RestartCountdown()
+    {
+        StopAllCoroutines();
+
+        // Reset posisi bola, TIDAK launch
+        ball?.ResetPosition();
 
         StartCoroutine(RunCountdown());
     }
 
     IEnumerator RunCountdown()
     {
-        // Tunggu 1 frame agar scene siap
-        yield return null;
+        // Pastikan bola diam dulu
+        ball?.StopBall();
+
+        yield return null; // tunggu 1 frame
 
         countdownText.gameObject.SetActive(true);
 
-        // 3 → 2 → 1
         string[] steps = { "3", "2", "1", "GO!" };
 
         for (int i = 0; i < steps.Length; i++)
         {
             countdownText.text = steps[i];
-
-            // Punch scale animation
-            yield return StartCoroutine(PunchScaleAnim());
-
-            // Tunggu interval (kecuali GO! lebih singkat)
-            float wait = (i < steps.Length - 1) ? countdownInterval : goDuration;
-            yield return new WaitForSeconds(wait);
+            yield return StartCoroutine(PunchScaleAnim(
+                i < steps.Length - 1 ? countdownInterval : goDuration
+            ));
         }
 
-        // Sembunyikan teks
         countdownText.gameObject.SetActive(false);
 
-        // Aktifkan dan luncurkan bola
-        if (ball != null)
-        {
-            ball.enabled = true;
-            ball.LaunchBall();
-        }
+        // Countdown selesai → baru launch bola
+        ball?.LaunchBall();
     }
 
-    IEnumerator PunchScaleAnim()
+    IEnumerator PunchScaleAnim(float duration)
     {
-        // Scale dari besar → normal
         float elapsed = 0f;
-        float duration = countdownInterval * 0.5f;
 
         while (elapsed < duration)
         {
             elapsed += Time.deltaTime;
-            float t = elapsed / duration;
-
-            // Ease out: mulai besar, mengecil ke 1
+            float t     = elapsed / duration;
             float scale = Mathf.Lerp(punchScale, 1f, t);
             countdownText.transform.localScale = Vector3.one * scale;
-
             yield return null;
         }
 
         countdownText.transform.localScale = Vector3.one;
-    }
-
-    /// <summary>
-    /// Panggil ini untuk countdown ulang setelah gol.
-    /// Biasanya dipanggil dari PongGameManager.
-    /// </summary>
-    public void RestartCountdown()
-    {
-        StopAllCoroutines();
-
-        if (ball != null)
-            ball.enabled = false;
-
-        StartCoroutine(RunCountdown());
     }
 }

@@ -19,17 +19,9 @@ public class PongBall : MonoBehaviour
     public float minVerticalAngle = 20f;
 
     [Header("Wall Bounds")]
-    [Tooltip("Batas X kiri meja (world space). Samakan dengan posisi X Wall_Left)")]
     public float wallXMin = -2.5f;
-
-    [Tooltip("Batas X kanan meja (world space). Samakan dengan posisi X Wall_Right)")]
     public float wallXMax = 2.5f;
-
-    [Tooltip("Offset kecil agar bola tidak stuck di wall")]
     public float wallBounceOffset = 0.05f;
-
-    [Header("Reset Settings")]
-    public float resetDelay = 1.5f;
 
     [Header("References")]
     public PongGameManager gameManager;
@@ -59,7 +51,7 @@ public class PongBall : MonoBehaviour
     void Start()
     {
         spawnPosition = transform.position;
-        //LaunchBall();
+        // ← Tidak ada LaunchBall() di sini, countdown yang handle
     }
 
     // ── Update ────────────────────────────────────────────────────────────
@@ -75,11 +67,7 @@ public class PongBall : MonoBehaviour
     void FixedUpdate()
     {
         if (!isActive) return;
-
-        // ── WALL BOUNCE via posisi (tidak bergantung OnCollision) ──────
         CheckWallBounce();
-
-        // Paksa kecepatan konstan
         EnforceConstantSpeed();
     }
 
@@ -91,17 +79,15 @@ public class PongBall : MonoBehaviour
         Vector3 vel = rb.linearVelocity;
         bool bounced = false;
 
-        // Kena wall KIRI
         if (pos.x <= wallXMin && vel.x < 0f)
         {
-            vel.x = Mathf.Abs(vel.x);   // balik ke kanan
+            vel.x = Mathf.Abs(vel.x);
             transform.position = new Vector3(wallXMin + wallBounceOffset, pos.y, pos.z);
             bounced = true;
         }
-        // Kena wall KANAN
         else if (pos.x >= wallXMax && vel.x > 0f)
         {
-            vel.x = -Mathf.Abs(vel.x);  // balik ke kiri
+            vel.x = -Mathf.Abs(vel.x);
             transform.position = new Vector3(wallXMax - wallBounceOffset, pos.y, pos.z);
             bounced = true;
         }
@@ -113,8 +99,11 @@ public class PongBall : MonoBehaviour
         }
     }
 
-    // ── Launch ────────��───────────────────────────────────────────────────
+    // ── Launch & Stop ─────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Dipanggil HANYA oleh PongCountdown setelah countdown selesai.
+    /// </summary>
     public void LaunchBall()
     {
         isActive         = true;
@@ -125,8 +114,41 @@ public class PongBall : MonoBehaviour
         float randomX = Random.Range(-0.4f, 0.4f);
         float randomZ = Random.value > 0.5f ? 1f : -1f;
 
-        Vector3 dir = ClampVerticalAngle(new Vector3(randomX, 0f, randomZ).normalized);
+        Vector3 dir = ClampVerticalAngle(
+            new Vector3(randomX, 0f, randomZ).normalized
+        );
         rb.linearVelocity = dir * currentSpeed;
+    }
+
+    /// <summary>
+    /// Stop bola total — dipanggil saat gol atau game over.
+    /// </summary>
+    public void StopBall()
+    {
+        isActive          = false;
+        lastHitBat        = null;
+        hitCooldownTimer  = 0f;
+        rb.linearVelocity = Vector3.zero;
+        rb.angularVelocity = Vector3.zero;
+    }
+
+    /// <summary>
+    /// Reset posisi bola ke spawn — TIDAK launch.
+    /// Launch dilakukan countdown setelah selesai.
+    /// </summary>
+    public void ResetPosition()
+    {
+        StopBall();
+        transform.position = spawnPosition;
+    }
+
+    /// <summary>
+    /// Dipanggil dari luar jika butuh force reset total.
+    /// </summary>
+    public void ForceReset()
+    {
+        CancelInvoke();
+        ResetPosition();
     }
 
     // ── Bat Collision ─────────────────────────────────────────────────────
@@ -136,7 +158,6 @@ public class PongBall : MonoBehaviour
         if (!isActive) return;
         if (!collision.gameObject.CompareTag("Bat")) return;
 
-        // Anti double-hit
         if (collision.gameObject == lastHitBat && hitCooldownTimer > 0f) return;
 
         lastHitBat       = collision.gameObject;
@@ -146,44 +167,36 @@ public class PongBall : MonoBehaviour
         ApplyBatDeflection(collision);
     }
 
-    // ── Bat Deflection ──────��─────────────────────────────────────────────
-
     void ApplyBatDeflection(Collision collision)
     {
         Transform batTransform = collision.transform;
         ContactPoint contact   = collision.GetContact(0);
         Vector3 hitPoint       = contact.point;
 
-        // Tentukan arah Z dari playerSide
         PongBatController batCtrl = collision.gameObject
                                     .GetComponentInParent<PongBatController>();
-        float dirZ = 1f;
-        if (batCtrl != null)
-            dirZ = (batCtrl.playerSide == PongBatController.PlayerSide.Bottom) ? 1f : -1f;
-        else
-            dirZ = batTransform.position.z < 0f ? 1f : -1f;
+        float dirZ = (batCtrl != null)
+            ? (batCtrl.playerSide == PongBatController.PlayerSide.Bottom ? 1f : -1f)
+            : (batTransform.position.z < 0f ? 1f : -1f);
 
-        // Offset titik kena (kiri/kanan bat)
         Vector3 batRight = batTransform.right;
         batRight.y       = 0f;
         if (batRight.sqrMagnitude < 0.01f) batRight = Vector3.right;
         batRight.Normalize();
 
-        float offsetDot      = Vector3.Dot(hitPoint - batTransform.position, batRight);
-        float halfWidth      = collision.collider.bounds.extents.x;
-        float normalizedOff  = halfWidth > 0.01f
-                               ? Mathf.Clamp(offsetDot / halfWidth, -1f, 1f)
-                               : 0f;
-        float deflectX       = normalizedOff * hitOffsetInfluence;
+        float offsetDot     = Vector3.Dot(hitPoint - batTransform.position, batRight);
+        float halfWidth     = collision.collider.bounds.extents.x;
+        float normalizedOff = halfWidth > 0.01f
+                              ? Mathf.Clamp(offsetDot / halfWidth, -1f, 1f)
+                              : 0f;
+        float deflectX      = normalizedOff * hitOffsetInfluence;
 
-        // Rotasi bat
         Vector3 batFwd = batTransform.forward;
         batFwd.y       = 0f;
         if (batFwd.sqrMagnitude < 0.01f) batFwd = Vector3.forward;
         batFwd.Normalize();
         float rotSpinX = batFwd.x * batRotationInfluence;
 
-        // Final direction
         Vector3 finalDir = ClampVerticalAngle(
             new Vector3(deflectX + rotSpinX, 0f, dirZ).normalized
         );
@@ -191,8 +204,6 @@ public class PongBall : MonoBehaviour
         rb.linearVelocity = finalDir * currentSpeed;
 
         Debug.DrawRay(hitPoint, finalDir * 2f, Color.green, 1f);
-        Debug.Log($"[Ball] Kena {collision.gameObject.name} | " +
-                  $"offset={normalizedOff:F2} | dirZ={dirZ} | final={finalDir}");
     }
 
     // ── Goal ──────────────────────────────────────────────────────────────
@@ -207,25 +218,11 @@ public class PongBall : MonoBehaviour
 
     void OnGoal(int scorer)
     {
-        isActive          = false;
-        rb.linearVelocity = Vector3.zero;
+        // Stop bola langsung
+        StopBall();
+
+        // Beritahu GameManager — GameManager yang trigger countdown
         gameManager?.OnGoal(scorer);
-        Invoke(nameof(ResetBall), resetDelay);
-    }
-
-    void ResetBall()
-    {
-        transform.position = spawnPosition;
-        rb.linearVelocity  = Vector3.zero;
-        lastHitBat         = null;
-        hitCooldownTimer   = 0f;
-        LaunchBall();
-    }
-
-    public void ForceReset()
-    {
-        CancelInvoke(nameof(ResetBall));
-        ResetBall();
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────
@@ -233,7 +230,6 @@ public class PongBall : MonoBehaviour
     Vector3 ClampVerticalAngle(Vector3 dir)
     {
         float minZ = Mathf.Sin(minVerticalAngle * Mathf.Deg2Rad);
-
         if (Mathf.Abs(dir.z) < minZ)
         {
             dir.z = minZ * Mathf.Sign(dir.z == 0f ? 1f : dir.z);
