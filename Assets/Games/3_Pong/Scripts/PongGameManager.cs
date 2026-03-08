@@ -1,30 +1,20 @@
 using UnityEngine;
 using TMPro;
 
-/// <summary>
-/// Mengatur skor dan state game Pong PvP.
-/// </summary>
 public class PongGameManager : MonoBehaviour
 {
     [Header("Score Settings")]
-    [Tooltip("Skor maksimum untuk menang")]
     public int maxScore = 7;
 
     [Header("UI References")]
-    [Tooltip("Text skor P1")]
     public TextMeshProUGUI scoreP1Text;
-
-    [Tooltip("Text skor P2")]
     public TextMeshProUGUI scoreP2Text;
-
-    [Tooltip("Panel Game Over")]
     public GameObject gameOverPanel;
-
-    [Tooltip("Text pemenang di panel Game Over")]
     public TextMeshProUGUI winnerText;
 
     [Header("References")]
     public PongBall ball;
+    public PongCountdown countdown;  // ← tambahan
 
     // Internal
     private int scoreP1 = 0;
@@ -39,41 +29,29 @@ public class PongGameManager : MonoBehaviour
         UpdateScoreUI();
     }
 
-    /// <summary>
-    /// Dipanggil oleh PongBall saat terjadi gol.
-    /// </summary>
-    /// <param name="scoringPlayer">Player yang dapat poin (1 atau 2)</param>
     public void OnGoal(int scoringPlayer)
     {
         if (gameOver) return;
 
-        if (scoringPlayer == 1)
-        {
-            scoreP1++;
-            Debug.Log($"[Pong] P1 Gol! Skor: P1={scoreP1} P2={scoreP2}");
-        }
-        else
-        {
-            scoreP2++;
-            Debug.Log($"[Pong] P2 Gol! Skor: P1={scoreP1} P2={scoreP2}");
-        }
+        if (scoringPlayer == 1) scoreP1++;
+        else                    scoreP2++;
 
         UpdateScoreUI();
-        CheckWinCondition();
+        Debug.Log($"[Pong] Gol! Skor: P1={scoreP1} P2={scoreP2}");
+
+        if (!CheckWinCondition())
+        {
+            // Belum ada yang menang → countdown lagi
+            countdown?.RestartCountdown();
+        }
     }
 
-    void UpdateScoreUI()
+    // Return true jika ada pemenang
+    bool CheckWinCondition()
     {
-        if (scoreP1Text != null) scoreP1Text.text = scoreP1.ToString();
-        if (scoreP2Text != null) scoreP2Text.text = scoreP2.ToString();
-    }
-
-    void CheckWinCondition()
-    {
-        if (scoreP1 >= maxScore)
-            EndGame(1);
-        else if (scoreP2 >= maxScore)
-            EndGame(2);
+        if (scoreP1 >= maxScore)      { EndGame(1); return true; }
+        if (scoreP2 >= maxScore)      { EndGame(2); return true; }
+        return false;
     }
 
     void EndGame(int winner)
@@ -81,14 +59,12 @@ public class PongGameManager : MonoBehaviour
         gameOver = true;
         Debug.Log($"[Pong] Player {winner} Menang!");
 
-        if (gameOverPanel != null)
-            gameOverPanel.SetActive(true);
-
-        if (winnerText != null)
-            winnerText.text = $"Player {winner}\nMenang! 🏆";
+        if (gameOverPanel != null) gameOverPanel.SetActive(true);
+        if (winnerText    != null) winnerText.text = $"Player {winner}\nMenang! 🏆";
 
         if (ball != null)
         {
+            ball.enabled = false;
             var rb = ball.GetComponent<Rigidbody>();
             if (rb != null) rb.linearVelocity = Vector3.zero;
         }
@@ -96,14 +72,19 @@ public class PongGameManager : MonoBehaviour
 
     public void RestartGame()
     {
-        scoreP1 = 0;
-        scoreP2 = 0;
+        scoreP1  = 0;
+        scoreP2  = 0;
         gameOver = false;
 
-        if (gameOverPanel != null)
-            gameOverPanel.SetActive(false);
+        if (gameOverPanel != null) gameOverPanel.SetActive(false);
 
         UpdateScoreUI();
-        ball?.ForceReset();
+        countdown?.RestartCountdown();
+    }
+
+    void UpdateScoreUI()
+    {
+        if (scoreP1Text != null) scoreP1Text.text = scoreP1.ToString();
+        if (scoreP2Text != null) scoreP2Text.text = scoreP2.ToString();
     }
 }
