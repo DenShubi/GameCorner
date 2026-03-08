@@ -6,6 +6,9 @@ TagManager:
   tags:
   - Log
   - Knife
+  - Bat
+  - GoalP1
+  - GoalP2
   layers:
   - Default
   - TransparentFX
