@@ -2,93 +2,63 @@ using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
 
-/// <summary>
-/// Powered Charge / Smash system untuk Pong PvP.
-/// Pasang pada GameObject bat (sama dengan PongBatController).
-/// 
-/// Cara kerja:
-///   - Pemain TAHAN tombol charge → charge terisi
-///   - Saat bat kena bola dalam kondisi FULLY CHARGED → SMASH
-///   - Smash: bola sangat cepat, lurus ke lawan, minimal spin
-/// </summary>
 public class PongPowerCharge : MonoBehaviour
 {
     [Header("Charge Settings")]
-    [Tooltip("Durasi tahan tombol untuk full charge (detik)")]
-    public float chargeTime = 1.2f;
-
-    [Tooltip("Multiplier kecepatan bola saat smash")]
+    public float chargeTime          = 1.2f;
     public float smashSpeedMultiplier = 2.5f;
-
-    [Tooltip("Setelah smash, kecepatan bola kembali normal setelah jarak ini")]
     public float smashSpeedDecayDistance = 8f;
-
-    [Tooltip("Charge otomatis reset jika tidak dipakai setelah sekian detik")]
-    public float chargeResetDelay = 3f;
+    public float chargeResetDelay    = 3f;
 
     [Header("Visual — Bat")]
-    [Tooltip("Renderer bat untuk efek warna charge")]
     public Renderer batRenderer;
-
-    [Tooltip("Warna bat saat normal")]
-    public Color normalColor = Color.white;
-
-    [Tooltip("Warna bat saat fully charged")]
-    public Color chargedColor = new Color(1f, 0.4f, 0f); // oranye
+    public Color normalColor  = Color.white;
+    public Color chargedColor = new Color(1f, 0.4f, 0f);
 
     [Header("Visual — UI")]
-    [Tooltip("Image lingkaran charge (fill type = Radial 360)")]
-    public Image chargeBarImage;
+    public Image  chargeBarImage;
+    public Color  chargeBarColor     = new Color(1f, 0.8f, 0f);
+    public Color  chargeBarFullColor = new Color(1f, 0.3f, 0f);
 
-    [Tooltip("Warna charge bar saat mengisi")]
-    public Color chargeBarColor = new Color(1f, 0.8f, 0f);
-
-    [Tooltip("Warna charge bar saat full")]
-    public Color chargeBarFullColor = new Color(1f, 0.3f, 0f);
+    [Header("Visual — Indicator")]                        // ← field baru
+    [Tooltip("GameObject teks SMASH! (default nonaktif)")]
+    public GameObject smashReadyIndicator;
 
     [Header("Input")]
-    [Tooltip("Tombol charge untuk player ini (keyboard — untuk testing)")]
-    public KeyCode chargeKey = KeyCode.Space;
+    public KeyCode chargeKey      = KeyCode.Space;
+    public bool    useTouchInput  = true;
+    public Button  chargeButton;                          // ← tidak dipakai jika pakai EventTrigger
 
-    [Tooltip("Gunakan touch input (untuk mobile)")]
-    public bool useTouchInput = true;
+    // ── Public getter untuk PongBall ──────────────────────────────────────
+    public bool  IsSmashReady        => smashReady;
+    public float SmashSpeedMultiplier => smashSpeedMultiplier;
 
-    [Tooltip("Referensi tombol UI charge (assign Button di Inspector)")]
-    public UnityEngine.UI.Button chargeButton;
-
-    // Internal
-    private float currentCharge   = 0f;   // 0 = kosong, 1 = penuh
-    private bool  isCharging      = false;
-    private bool  isFullyCharged  = false;
-    private bool  smashReady      = false; // true = akan smash di hit berikutnya
-    private float chargeResetTimer = 0f;
+    // ── Internal ──────────────────────────────────────────────────────────
+    private float     currentCharge    = 0f;
+    private bool      isCharging       = false;
+    private bool      isFullyCharged   = false;
+    private bool      smashReady       = false;
+    private float     chargeResetTimer = 0f;
 
     private MaterialPropertyBlock propBlock;
-    private Coroutine resetCoroutine;
     private Coroutine batFlashCoroutine;
-
-    // Public getter untuk PongBall
-    public bool IsSmashReady => smashReady;
-    public float SmashSpeedMultiplier => smashSpeedMultiplier;
 
     void Awake()
     {
         propBlock = new MaterialPropertyBlock();
 
-        // Setup charge bar
         if (chargeBarImage != null)
         {
-            chargeBarImage.type      = Image.Type.Filled;
-            chargeBarImage.fillMethod = Image.FillMethod.Radial360;
+            chargeBarImage.type       = Image.Type.Filled;
+            chargeBarImage.fillMethod = Image.FillMethod.Vertical;
+            chargeBarImage.fillOrigin = (int)Image.OriginVertical.Bottom;
             chargeBarImage.fillAmount = 0f;
-            chargeBarImage.color     = chargeBarColor;
+            chargeBarImage.color      = chargeBarColor;
         }
 
-        // Setup tombol UI
-        if (chargeButton != null)
-        {
-            chargeButton.onClick.RemoveAllListeners();
-        }
+        // Pastikan indicator hidden di awal
+        if (smashReadyIndicator != null)
+            smashReadyIndicator.SetActive(false);
     }
 
     void Update()
@@ -96,7 +66,7 @@ public class PongPowerCharge : MonoBehaviour
         HandleChargeInput();
         UpdateChargeVisual();
 
-        // Auto reset jika charge penuh tapi tidak dipakai
+        // Auto reset jika smash tidak dipakai terlalu lama
         if (smashReady)
         {
             chargeResetTimer -= Time.deltaTime;
@@ -111,17 +81,11 @@ public class PongPowerCharge : MonoBehaviour
     {
         bool holdingCharge = false;
 
-        // Keyboard (testing di editor)
 #if UNITY_EDITOR
         if (Input.GetKey(chargeKey))
             holdingCharge = true;
 #endif
 
-        // Touch: tahan tombol UI
-        // chargeButton di-hold → isCharging diset dari PointerDown/Up
-        // (dihandle via EventTrigger di Inspector, lihat setup)
-
-        // Jika sudah smash ready, tidak perlu charge lagi
         if (smashReady) return;
 
         if (holdingCharge || isCharging)
@@ -131,8 +95,8 @@ public class PongPowerCharge : MonoBehaviour
 
             if (currentCharge >= 1f && !isFullyCharged)
             {
-                isFullyCharged = true;
-                smashReady     = true;
+                isFullyCharged   = true;
+                smashReady       = true;
                 chargeResetTimer = chargeResetDelay;
                 OnFullyCharged();
             }
@@ -158,11 +122,14 @@ public class PongPowerCharge : MonoBehaviour
         isCharging = false;
     }
 
-    // ── Charge Penuh ──────────────────────────────────────────────────────
+    // ── Fully Charged ─────────────────────────────────────────────────────
 
     void OnFullyCharged()
     {
-        // Flash bat warna charged
+        // Tampilkan indikator SMASH!
+        if (smashReadyIndicator != null)
+            smashReadyIndicator.SetActive(true);
+
         if (batFlashCoroutine != null) StopCoroutine(batFlashCoroutine);
         batFlashCoroutine = StartCoroutine(BatFlashRoutine());
 
@@ -171,7 +138,6 @@ public class PongPowerCharge : MonoBehaviour
 
     IEnumerator BatFlashRoutine()
     {
-        // Bat berkedip oranye 3x saat fully charged
         for (int i = 0; i < 3; i++)
         {
             SetBatColor(chargedColor);
@@ -179,24 +145,29 @@ public class PongPowerCharge : MonoBehaviour
             SetBatColor(normalColor);
             yield return new WaitForSeconds(0.1f);
         }
-        // Tahan warna charged sampai smash dipakai
         SetBatColor(chargedColor);
     }
 
-    // ── Konsumsi Smash (dipanggil dari PongBall saat hit) ─────────────────
+    // ── Konsumsi Smash ────────────────────────────────────────────────────
 
-    /// <summary>
-    /// Dipanggil oleh PongBall saat collision dengan bat ini.
-    /// Return true jika smash diaktifkan, false jika hit normal.
-    /// </summary>
     public bool ConsumeSmash()
     {
         if (!smashReady) return false;
-
         ResetCharge();
         StartCoroutine(SmashEffectRoutine());
         return true;
     }
+
+    IEnumerator SmashEffectRoutine()
+    {
+        SetBatColor(Color.white);
+        yield return new WaitForSeconds(0.05f);
+        SetBatColor(chargedColor);
+        yield return new WaitForSeconds(0.05f);
+        SetBatColor(normalColor);
+    }
+
+    // ── Reset ─────────────────────────────────────────────────────────────
 
     void ResetCharge()
     {
@@ -205,6 +176,10 @@ public class PongPowerCharge : MonoBehaviour
         smashReady       = false;
         isCharging       = false;
         chargeResetTimer = 0f;
+
+        // Sembunyikan indikator SMASH!
+        if (smashReadyIndicator != null)
+            smashReadyIndicator.SetActive(false);
 
         if (batFlashCoroutine != null)
         {
@@ -215,17 +190,10 @@ public class PongPowerCharge : MonoBehaviour
         SetBatColor(normalColor);
 
         if (chargeBarImage != null)
-            chargeBarImage.color = chargeBarColor;
-    }
-
-    IEnumerator SmashEffectRoutine()
-    {
-        // Bat flash putih saat smash
-        SetBatColor(Color.white);
-        yield return new WaitForSeconds(0.05f);
-        SetBatColor(chargedColor);
-        yield return new WaitForSeconds(0.05f);
-        SetBatColor(normalColor);
+        {
+            chargeBarImage.fillAmount = 0f;
+            chargeBarImage.color      = chargeBarColor;
+        }
     }
 
     // ── Visual Update ─────────────────────────────────────────────────────
@@ -235,11 +203,11 @@ public class PongPowerCharge : MonoBehaviour
         if (chargeBarImage == null) return;
 
         chargeBarImage.fillAmount = currentCharge;
+        chargeBarImage.color      = isFullyCharged
+                                    ? chargeBarFullColor
+                                    : chargeBarColor;
 
-        // Warna bar berubah saat penuh
-        chargeBarImage.color = isFullyCharged ? chargeBarFullColor : chargeBarColor;
-
-        // Pulse scale bar saat fully charged
+        // Pulse saat fully charged
         if (isFullyCharged)
         {
             float pulse = 1f + Mathf.Sin(Time.time * 8f) * 0.08f;
