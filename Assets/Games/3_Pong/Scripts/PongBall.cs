@@ -28,6 +28,7 @@ public class PongBall : MonoBehaviour
 
     // Internal
     private Rigidbody rb;
+    private PongBallVisuals visuals; // ← tambahan
     private float currentSpeed;
     private Vector3 spawnPosition;
     private bool isActive = false;
@@ -38,7 +39,9 @@ public class PongBall : MonoBehaviour
 
     void Awake()
     {
-        rb = GetComponent<Rigidbody>();
+        rb      = GetComponent<Rigidbody>();
+        visuals = GetComponent<PongBallVisuals>(); // ← tambahan
+
         rb.useGravity  = false;
         rb.constraints = RigidbodyConstraints.FreezePositionY
                        | RigidbodyConstraints.FreezeRotationX
@@ -51,10 +54,7 @@ public class PongBall : MonoBehaviour
     void Start()
     {
         spawnPosition = transform.position;
-        // ← Tidak ada LaunchBall() di sini, countdown yang handle
     }
-
-    // ── Update ────────────────────────────────────────────────────────────
 
     void Update()
     {
@@ -71,7 +71,7 @@ public class PongBall : MonoBehaviour
         EnforceConstantSpeed();
     }
 
-    // ── Wall Bounce ───────────────────────────────────────────────────────
+    // ── Wall ──────────────────────────────────────────────────────────────
 
     void CheckWallBounce()
     {
@@ -101,9 +101,6 @@ public class PongBall : MonoBehaviour
 
     // ── Launch & Stop ─────────────────────────────────────────────────────
 
-    /// <summary>
-    /// Dipanggil HANYA oleh PongCountdown setelah countdown selesai.
-    /// </summary>
     public void LaunchBall()
     {
         isActive         = true;
@@ -120,31 +117,22 @@ public class PongBall : MonoBehaviour
         rb.linearVelocity = dir * currentSpeed;
     }
 
-    /// <summary>
-    /// Stop bola total — dipanggil saat gol atau game over.
-    /// </summary>
     public void StopBall()
     {
-        isActive          = false;
-        lastHitBat        = null;
-        hitCooldownTimer  = 0f;
-        rb.linearVelocity = Vector3.zero;
+        isActive           = false;
+        lastHitBat         = null;
+        hitCooldownTimer   = 0f;
+        rb.linearVelocity  = Vector3.zero;
         rb.angularVelocity = Vector3.zero;
     }
 
-    /// <summary>
-    /// Reset posisi bola ke spawn — TIDAK launch.
-    /// Launch dilakukan countdown setelah selesai.
-    /// </summary>
     public void ResetPosition()
     {
         StopBall();
         transform.position = spawnPosition;
+        visuals?.ClearTrail(); // ← clear trail saat reset
     }
 
-    /// <summary>
-    /// Dipanggil dari luar jika butuh force reset total.
-    /// </summary>
     public void ForceReset()
     {
         CancelInvoke();
@@ -157,14 +145,15 @@ public class PongBall : MonoBehaviour
     {
         if (!isActive) return;
         if (!collision.gameObject.CompareTag("Bat")) return;
-
         if (collision.gameObject == lastHitBat && hitCooldownTimer > 0f) return;
 
         lastHitBat       = collision.gameObject;
         hitCooldownTimer = HIT_COOLDOWN;
 
         currentSpeed = Mathf.Min(currentSpeed + speedIncreasePerHit, maxSpeed);
+
         ApplyBatDeflection(collision);
+        visuals?.PlayHitPulse(); // ← pulse saat kena bat
     }
 
     void ApplyBatDeflection(Collision collision)
@@ -189,20 +178,21 @@ public class PongBall : MonoBehaviour
         float normalizedOff = halfWidth > 0.01f
                               ? Mathf.Clamp(offsetDot / halfWidth, -1f, 1f)
                               : 0f;
-        float deflectX      = normalizedOff * hitOffsetInfluence;
 
         Vector3 batFwd = batTransform.forward;
         batFwd.y       = 0f;
         if (batFwd.sqrMagnitude < 0.01f) batFwd = Vector3.forward;
         batFwd.Normalize();
-        float rotSpinX = batFwd.x * batRotationInfluence;
 
         Vector3 finalDir = ClampVerticalAngle(
-            new Vector3(deflectX + rotSpinX, 0f, dirZ).normalized
+            new Vector3(
+                normalizedOff * hitOffsetInfluence + batFwd.x * batRotationInfluence,
+                0f,
+                dirZ
+            ).normalized
         );
 
         rb.linearVelocity = finalDir * currentSpeed;
-
         Debug.DrawRay(hitPoint, finalDir * 2f, Color.green, 1f);
     }
 
@@ -218,10 +208,7 @@ public class PongBall : MonoBehaviour
 
     void OnGoal(int scorer)
     {
-        // Stop bola langsung
         StopBall();
-
-        // Beritahu GameManager — GameManager yang trigger countdown
         gameManager?.OnGoal(scorer);
     }
 
@@ -245,4 +232,67 @@ public class PongBall : MonoBehaviour
         vel.y       = 0f;
         rb.linearVelocity = vel.normalized * currentSpeed;
     }
-}
+
+        void ApplyBatDeflection(Collision collision)
+    {
+        Transform batTransform = collision.transform;
+        ContactPoint contact   = collision.GetContact(0);
+        Vector3 hitPoint       = contact.point;
+
+        // Cek apakah bat punya PowerCharge & smash ready
+        PongPowerCharge powerCharge = collision.gameObject
+                                      .GetComponentInParent<PongPowerCharge>();
+        bool isSmash = powerCharge != null && powerCharge.ConsumeSmash();
+
+        // Tentukan arah Z
+        PongBatController batCtrl = collision.gameObject
+                                    .GetComponentInParent<PongBatController>();
+        float dirZ = (batCtrl != null)
+            ? (batCtrl.playerSide == PongBatController.PlayerSide.Bottom ? 1f : -1f)
+            : (batTransform.position.z < 0f ? 1f : -1f);
+
+        float finalX;
+
+        if (isSmash)
+        {
+            // ── SMASH: lurus ke depan, hampir tanpa spin ───────────────
+            finalX = 0f; // bola lurus ke tengah
+            currentSpeed = Mathf.Min(currentSpeed * powerCharge.SmashSpeedMultiplier, maxSpeed);
+            Debug.Log($"[Ball] SMASH! Speed={currentSpeed}");
+        }
+        else
+        {
+            // ── Normal hit: spin berdasarkan offset & rotasi bat ───────
+            Vector3 batRight = batTransform.right;
+            batRight.y       = 0f;
+            if (batRight.sqrMagnitude < 0.01f) batRight = Vector3.right;
+            batRight.Normalize();
+
+            float offsetDot     = Vector3.Dot(hitPoint - batTransform.position, batRight);
+            float halfWidth     = collision.collider.bounds.extents.x;
+            float normalizedOff = halfWidth > 0.01f
+                                  ? Mathf.Clamp(offsetDot / halfWidth, -1f, 1f)
+                                  : 0f;
+
+            Vector3 batFwd = batTransform.forward;
+            batFwd.y       = 0f;
+            if (batFwd.sqrMagnitude < 0.01f) batFwd = Vector3.forward;
+            batFwd.Normalize();
+
+            finalX = normalizedOff * hitOffsetInfluence + batFwd.x * batRotationInfluence;
+        }
+
+        Vector3 finalDir = ClampVerticalAngle(
+            new Vector3(finalX, 0f, dirZ).normalized
+        );
+
+        rb.linearVelocity = finalDir * currentSpeed;
+
+        // Visual
+        visuals?.PlayHitPulse();
+        if (isSmash) visuals?.PlaySmashEffect();
+
+        Debug.DrawRay(hitPoint, finalDir * 2f,
+                      isSmash ? Color.red : Color.green, 1f);
+    }
+}   
